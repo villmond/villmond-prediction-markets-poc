@@ -1,0 +1,95 @@
+import { describe, expect, it } from "vitest";
+import { generateSecretKey } from "nostr-tools";
+import {
+  BET_PLACEMENT_KIND,
+  MARKET_CREATION_KIND,
+  buildBetPlacementEvent,
+  buildMarketCreationEvent,
+  parseBetPlacementEvent,
+  parseMarketCreationEvent,
+} from "../src/marketEvents.js";
+
+describe("market creation events", () => {
+  it("builds a signed, verifiable kind:30000 event round-tripping all fields", () => {
+    const secretKey = generateSecretKey();
+    const params = {
+      marketId: "market-abc123",
+      question: "Will it rain in SF by Friday?",
+      outcomeType: "binary" as const,
+      outcomes: ["Yes", "No"],
+      metadataCid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+      closesAt: 1_900_000_000,
+    };
+
+    const event = buildMarketCreationEvent(params, secretKey);
+
+    expect(event.kind).toBe(MARKET_CREATION_KIND);
+    expect(event.sig).toBeDefined();
+    expect(parseMarketCreationEvent(event)).toEqual(params);
+  });
+
+  it("round-trips the optional ledger/settlement zkApp addresses when present", () => {
+    const secretKey = generateSecretKey();
+    const params = {
+      marketId: "market-onchain-1",
+      question: "Will it rain in SF by Friday?",
+      outcomeType: "binary" as const,
+      outcomes: ["Yes", "No"],
+      metadataCid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+      closesAt: 1_900_000_000,
+      ledgerAddress: "B62qpPj4XJZHCAuya2Q6JkZNRVcVSDnEDAfQkeqoAdVDvTmV23mHcUg",
+      settlementAddress: "B62qkYa1o6Mj6uTTjDqF2EkV9bcKbDU1D1V5BkQi5c8sQK5tR5qbW8W",
+    };
+
+    const event = buildMarketCreationEvent(params, secretKey);
+
+    expect(parseMarketCreationEvent(event)).toEqual(params);
+  });
+
+  it("rejects an empty question", () => {
+    const secretKey = generateSecretKey();
+    expect(() =>
+      buildMarketCreationEvent(
+        { marketId: "x", question: "  ", outcomeType: "binary", outcomes: ["Yes", "No"], metadataCid: "bafy", closesAt: 1_900_000_000 },
+        secretKey,
+      ),
+    ).toThrow(/question/);
+  });
+
+  it("rejects fewer than two outcomes", () => {
+    const secretKey = generateSecretKey();
+    expect(() =>
+      buildMarketCreationEvent(
+        { marketId: "x", question: "q", outcomeType: "binary", outcomes: ["Yes"], metadataCid: "bafy", closesAt: 1_900_000_000 },
+        secretKey,
+      ),
+    ).toThrow(/outcomes/);
+  });
+
+  it("rejects a closesAt timestamp in the past", () => {
+    const secretKey = generateSecretKey();
+    expect(() =>
+      buildMarketCreationEvent(
+        { marketId: "x", question: "q", outcomeType: "binary", outcomes: ["Yes", "No"], metadataCid: "bafy", closesAt: 1 },
+        secretKey,
+      ),
+    ).toThrow(/closesAt/);
+  });
+});
+
+describe("bet placement events", () => {
+  it("builds a signed kind:7001 event round-tripping all fields", () => {
+    const secretKey = generateSecretKey();
+    const params = {
+      marketEventId: "a".repeat(64),
+      outcomeIndex: 1,
+      amount: 250,
+    };
+
+    const event = buildBetPlacementEvent(params, secretKey);
+
+    expect(event.kind).toBe(BET_PLACEMENT_KIND);
+    expect(event.sig).toBeDefined();
+    expect(parseBetPlacementEvent(event)).toEqual(params);
+  });
+});

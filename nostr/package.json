@@ -1,0 +1,28 @@
+{
+  "name": "@villmond/nostr",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Nostr event utilities (keypair generation, market events, bet placements) and IPFS metadata pinning for villmond-prediction-markets-poc",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./*.js": "./dist/*.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "nostr-tools": "^2.10.4"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vitest": "^5.0.4"
+  }
+}

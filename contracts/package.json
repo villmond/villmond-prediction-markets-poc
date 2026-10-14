@@ -1,0 +1,22 @@
+{
+  "name": "@villmond/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mina Protocol zkApps (o1js): VilcoinLedger AMM pool, MarketSettlement resolution/fee enforcement, and CashierEscrow P2P bonding",
+  "type": "module",
+  "main": "./build/src/index.js",
+  "types": "./build/src/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test build/tests/*.test.js",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "deploy:devnet": "npm run build && node build/scripts/deploy-devnet.js"
+  },
+  "dependencies": {
+    "o1js": "^2.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}

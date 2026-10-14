@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@theme {
+  --color-vil-bg: #0b0a14;
+  --color-vil-surface: #1c1a2b;
+  --color-vil-surface-raised: #211f33;
+  --color-vil-line: #241f38;
+  --color-vil-accent: #8b5cf6;
+  --color-vil-ember: #ff7a45;
+  --color-vil-yes: #34d399;
+  --color-vil-no: #fb7185;
+  --color-vil-muted: #9a95b3;
+  --color-vil-faint: #595474;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-sans: "Manrope", sans-serif;
+}
+
+html, body, #root {
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+}

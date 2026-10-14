@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    name: Verify (build, test, BDD, lint, audit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build all workspaces
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test
+
+      - name: BDD suite
+        run: npm run test:bdd
+
+      - name: Lint (typecheck + ESLint)
+        run: npm run lint
+
+      - name: npm audit (fail on moderate+ vulnerabilities)
+        run: npm audit --audit-level=moderate
+
+      - name: Package client PWA build
+        run: |
+          cd client/dist
+          zip -r "../../villmond-client-${GITHUB_REF_NAME}.zip" .
+
+      - name: Upload packaged client artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: villmond-client-${{ github.ref_name }}
+          path: villmond-client-${{ github.ref_name }}.zip
+          retention-days: 90
+
+  release:
+    name: Publish GitHub Release
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download packaged client artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: villmond-client-${{ github.ref_name }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: villmond-client-${{ github.ref_name }}.zip
+          # This remains a Proof of Concept; see README.md for what "Version
+          # 1.0" (threat model validation, external security audit) means
+          # the PRD still expects beyond this automated pipeline.
+          prerelease: true

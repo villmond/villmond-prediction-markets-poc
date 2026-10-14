@@ -1,0 +1,28 @@
+app:
+  name: "I bet U"
+  logo_url: "/assets/logo.svg"
+  theme: "dark" # or light
+
+economy:
+  token_name: "VILCOIN"
+  initial_user_balance: 1000
+  admin_fee_percentage: 2.5
+  admin_public_key: "npub1..."
+  enable_cashier_network: false # Optional flag to enable P2P fiat/crypto ramps
+
+cashier_module:
+  escrow_timeout_blocks: 150
+  supported_currencies: ["USD", "EUR", "ZEC", "CASH_P2P"] # Cash P2P, Zcash, Fiat
+  min_cashier_stake: 5000 # Minimum VILCOIN lock required to act as cashier
+  enable_physical_p2p: true # Enables location-gated cash in-person discovery
+  designated_public_keys: [] # Informational directory only — any key can act as cashier per-trade
+
+network:
+  default_relays:
+    - "wss://relay.damus.io"
+    - "wss://nos.lol"
+
+oracles:
+  min_reputation_threshold: 3.0
+  require_stake: false
+  designated_public_keys: [] # Informational directory only — see nostr/src/config.ts
