@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PublicKey } from "o1js";
 import { buildMarketCreationEvent, type MarketOutcomeType } from "@villmond/nostr/marketEvents.js";
 import { IpfsClient } from "@villmond/nostr/ipfs.js";
@@ -6,8 +6,11 @@ import type { VillmondKeypair } from "@villmond/nostr/keypair.js";
 import type { Event as NostrEvent } from "nostr-tools";
 import { hexToBytes } from "../utils/hex.js";
 import { deployMarketContracts } from "../utils/minaContracts.js";
+import { resizeImageFile } from "../utils/imageResize.js";
 import type { MinaWallet } from "../hooks/useMinaWallet.js";
 import { useI18n } from "../context/I18nContext.js";
+import { useToast } from "../context/ToastContext.js";
+import { useActionHistory } from "../hooks/useActionHistory.js";
 
 const CLOSES_IN_OPTIONS = [
   { labelKey: "createMarket.closes6h", hours: 6 },
@@ -22,6 +25,7 @@ const MAX_OUTCOMES = 6;
 interface Props {
   identity: VillmondKeypair | undefined;
   minaWallet: MinaWallet | undefined;
+  categories: string[];
   onPublish: (event: NostrEvent) => void;
   onClose: () => void;
 }
@@ -51,12 +55,23 @@ function resolveMinaPublicKey(input: string): PublicKey | undefined {
  * is a deliberate POC simplification (same spirit as the oracle/cashier
  * "informational directory, not an access gate" design in roles.ts).
  */
-export function CreateMarketModal({ identity, minaWallet, onPublish, onClose }: Props) {
+export function CreateMarketModal({ identity, minaWallet, categories, onPublish, onClose }: Props) {
   const { t } = useI18n();
+  const toast = useToast();
+  const { record } = useActionHistory();
   const [question, setQuestion] = useState("");
   const [outcomeType, setOutcomeType] = useState<MarketOutcomeType>("binary");
   const [outcomes, setOutcomes] = useState<string[]>([t("createMarket.defaultYes"), t("createMarket.defaultNo")]);
+  const [outcomesTouched, setOutcomesTouched] = useState(false);
+  const [category, setCategory] = useState<string>(categories[0] ?? "");
   const [closesInHours, setClosesInHours] = useState<number>(CLOSES_IN_OPTIONS[1].hours);
+  const [useCustomCloseTime, setUseCustomCloseTime] = useState(false);
+  const [customCloseAt, setCustomCloseAt] = useState("");
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [resizedImageBlob, setResizedImageBlob] = useState<Blob | null>(null);
+  const [imageProcessing, setImageProcessing] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [deployOnChain, setDeployOnChain] = useState(false);
   const [initialLiquidity, setInitialLiquidity] = useState("1000");
   const [oracleAddress, setOracleAddress] = useState("");
@@ -67,6 +82,7 @@ export function CreateMarketModal({ identity, minaWallet, onPublish, onClose }: 
   const trimmedOutcomes = outcomes.map((o) => o.trim());
   const liquidityAmount = Number(initialLiquidity);
   const oraclePublicKey = resolveMinaPublicKey(oracleAddress);
+  const [closesAtValid, setClosesAtValid] = useState(true);
   const onChainFieldsValid =
     !deployOnChain ||
     (Boolean(minaWallet) && Number.isFinite(liquidityAmount) && liquidityAmount > 0 && Boolean(oraclePublicKey));
@@ -75,19 +91,84 @@ export function CreateMarketModal({ identity, minaWallet, onPublish, onClose }: 
     question.trim().length > 0 &&
     trimmedOutcomes.length >= 2 &&
     trimmedOutcomes.every((o) => o.length > 0) &&
+    category.trim().length > 0 &&
+    closesAtValid &&
     onChainFieldsValid &&
     !submitting;
 
+  // Revokes the object URL backing the image preview whenever it's replaced
+  // or the modal unmounts — otherwise each picked photo leaks its blob URL.
+  useEffect(() => {
+    return () => {
+      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+    };
+  }, [imagePreviewUrl]);
+
+  // `Date.now()` is impure, so the "is this custom date/time still in the
+  // future" check runs here (an effect, outside the render pass) rather
+  // than inline in the component body.
+  useEffect(() => {
+    if (!useCustomCloseTime) {
+      setClosesAtValid(true);
+      return;
+    }
+    const ms = new Date(customCloseAt).getTime();
+    setClosesAtValid(Number.isFinite(ms) && ms > Date.now());
+  }, [useCustomCloseTime, customCloseAt]);
+
+  async function handleImageChange(fileList: FileList | null) {
+    const file = fileList?.[0];
+    if (!file) return;
+    setImageError(null);
+    setImageProcessing(true);
+    try {
+      const resized = await resizeImageFile(file);
+      setImagePreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(resized);
+      });
+      setResizedImageBlob(resized);
+    } catch (err) {
+      setImageError(err instanceof Error ? err.message : t("createMarket.imageProcessErrorGeneric"));
+      setResizedImageBlob(null);
+    } finally {
+      setImageProcessing(false);
+    }
+  }
+
+  function clearImage() {
+    setImagePreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setResizedImageBlob(null);
+    setImageError(null);
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  }
+
+  // Re-syncs the binary default outcomes to the current translation whenever
+  // `t` changes (dictionary finishes loading, or the user switches locale in
+  // Profile) — but only until the user actually edits an outcome, so a
+  // slow-to-load dictionary at mount doesn't leave untranslated keys sitting
+  // in the form, without ever clobbering real user input.
+  useEffect(() => {
+    if (outcomesTouched || outcomeType !== "binary") return;
+    setOutcomes([t("createMarket.defaultYes"), t("createMarket.defaultNo")]);
+  }, [t, outcomesTouched, outcomeType]);
+
   function updateOutcome(index: number, value: string) {
+    setOutcomesTouched(true);
     setOutcomes((prev) => prev.map((o, i) => (i === index ? value : o)));
   }
 
   function addOutcome() {
     if (outcomes.length >= MAX_OUTCOMES) return;
+    setOutcomesTouched(true);
     setOutcomes((prev) => [...prev, ""]);
   }
 
   function removeOutcome(index: number) {
+    setOutcomesTouched(true);
     setOutcomes((prev) => prev.filter((_, i) => i !== index));
   }
 
@@ -107,7 +188,22 @@ export function CreateMarketModal({ identity, minaWallet, onPublish, onClose }: 
       const metadataCid = await ipfs.pinJson({ question: question.trim(), outcomes: trimmedOutcomes });
 
       const marketId = crypto.randomUUID();
-      const closesAt = Math.floor(Date.now() / 1000) + closesInHours * 3600;
+      const closesAt = useCustomCloseTime
+        ? Math.floor(new Date(customCloseAt).getTime() / 1000)
+        : Math.floor(Date.now() / 1000) + closesInHours * 3600;
+
+      // Image pin failure is non-fatal: the market still publishes without
+      // `imageCid`, and `MarketImage` already falls back to the category's
+      // bundled default image whenever there's no CID (or a gateway can't
+      // serve one) — so a flaky/unreachable IPFS node never blocks posting.
+      let imageCid: string | undefined;
+      if (resizedImageBlob) {
+        try {
+          imageCid = await ipfs.pinFile(resizedImageBlob, "cover.jpg");
+        } catch {
+          toast.push({ message: t("createMarket.imagePinWarning"), tone: "info" });
+        }
+      }
 
       let ledgerAddress: string | undefined;
       let settlementAddress: string | undefined;
@@ -123,6 +219,12 @@ export function CreateMarketModal({ identity, minaWallet, onPublish, onClose }: 
         ledgerAddress = deployed.ledgerAddress;
         settlementAddress = deployed.settlementAddress;
         setDeployStep(null);
+        void record({
+          type: "market.deploy",
+          detail: question.trim(),
+          address: ledgerAddress,
+        });
+        toast.push({ message: t("createMarket.deployedToast"), tone: "success" });
       }
 
       const event = buildMarketCreationEvent(
@@ -133,6 +235,8 @@ export function CreateMarketModal({ identity, minaWallet, onPublish, onClose }: 
           outcomes: trimmedOutcomes,
           metadataCid,
           closesAt,
+          category,
+          imageCid,
           ledgerAddress,
           settlementAddress,
         },
@@ -143,11 +247,12 @@ export function CreateMarketModal({ identity, minaWallet, onPublish, onClose }: 
       onClose();
     } catch (err) {
       setDeployStep(null);
-      setError(
+      const message =
         err instanceof Error
           ? t("createMarket.publishErrorWithMessage", { message: err.message })
-          : t("createMarket.publishErrorGeneric"),
-      );
+          : t("createMarket.publishErrorGeneric");
+      setError(message);
+      toast.push({ message, tone: "error" });
     } finally {
       setSubmitting(false);
     }
@@ -235,6 +340,44 @@ export function CreateMarketModal({ identity, minaWallet, onPublish, onClose }: 
         </div>
 
         <div className="flex flex-col gap-1.5">
+          <label className="text-[11px] font-bold uppercase tracking-wide text-vil-muted" htmlFor="vl-category">
+            {t("createMarket.category")}
+          </label>
+          <select id="vl-category" value={category} onChange={(e) => setCategory(e.target.value)} className={inputClass}>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c.charAt(0).toUpperCase() + c.slice(1)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[11px] font-bold uppercase tracking-wide text-vil-muted">
+            {t("createMarket.image")}
+          </span>
+          {imagePreviewUrl ? (
+            <div className="flex flex-col gap-1.5">
+              <img src={imagePreviewUrl} alt="" className="h-32 w-full rounded-lg object-cover" />
+              <button type="button" onClick={clearImage} className="text-left text-xs font-bold text-vil-no">
+                {t("createMarket.removeImage")}
+              </button>
+            </div>
+          ) : (
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              onChange={(e) => void handleImageChange(e.target.files)}
+              className={inputClass}
+            />
+          )}
+          <p className="text-[11px] text-vil-faint">{t("createMarket.imageHint")}</p>
+          {imageProcessing && <p className="text-xs text-vil-muted">{t("createMarket.imageProcessing")}</p>}
+          {imageError && <p className="text-xs text-vil-no">{imageError}</p>}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
           <label className="text-[11px] font-bold uppercase tracking-wide text-vil-muted" htmlFor="vl-closes">
             {t("createMarket.closesIn")}
           </label>
@@ -242,7 +385,8 @@ export function CreateMarketModal({ identity, minaWallet, onPublish, onClose }: 
             id="vl-closes"
             value={closesInHours}
             onChange={(e) => setClosesInHours(Number(e.target.value))}
-            className={inputClass}
+            disabled={useCustomCloseTime}
+            className={inputClass + " disabled:opacity-50"}
           >
             {CLOSES_IN_OPTIONS.map((opt) => (
               <option key={opt.hours} value={opt.hours}>
@@ -250,6 +394,22 @@ export function CreateMarketModal({ identity, minaWallet, onPublish, onClose }: 
               </option>
             ))}
           </select>
+          <label className="flex items-center gap-2 text-xs font-bold text-vil-muted">
+            <input
+              type="checkbox"
+              checked={useCustomCloseTime}
+              onChange={(e) => setUseCustomCloseTime(e.target.checked)}
+            />
+            {t("createMarket.customCloseTime")}
+          </label>
+          {useCustomCloseTime && (
+            <input
+              type="datetime-local"
+              value={customCloseAt}
+              onChange={(e) => setCustomCloseAt(e.target.value)}
+              className={inputClass}
+            />
+          )}
         </div>
 
         <div className="flex flex-col gap-2 border-t border-vil-line pt-3">

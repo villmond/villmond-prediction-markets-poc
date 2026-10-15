@@ -5,7 +5,10 @@ import type { Event as NostrEvent } from "nostr-tools";
 import { buildProfileMetadataEvent } from "@villmond/nostr/profile.js";
 import { useProfile } from "../hooks/useProfile.js";
 import { hexToBytes } from "../utils/hex.js";
-import { useI18n } from "../context/I18nContext.js";
+import { useI18n, SUPPORTED_LOCALES } from "../context/I18nContext.js";
+import type { SupportedLocale } from "../utils/i18n.js";
+import { useActionHistory } from "../hooks/useActionHistory.js";
+import { CopyButton } from "./CopyButton.js";
 
 interface Props {
   identity: VillmondKeypair | undefined;
@@ -17,6 +20,12 @@ interface Props {
 const inputClass =
   "rounded-[10px] border border-vil-line bg-[#100E1A] px-3 py-2.5 text-[13px] text-slate-100 placeholder:text-vil-faint";
 
+const LOCALE_LABELS: Record<SupportedLocale, string> = {
+  "en-GB": "English (UK)",
+  "es-AR": "Español (Argentina)",
+  "pt-BR": "Português (Brasil)",
+};
+
 /**
  * Every user's profile: editable display details (published as a standard
  * NIP-01 kind:0 event, so it shows up in any Nostr client) plus their
@@ -24,7 +33,8 @@ const inputClass =
  * backing up your nsec isn't locked behind the now admin-only Expert tab.
  */
 export function ProfileTab({ identity, minaAddress, relayClient, onPublish }: Props) {
-  const { t } = useI18n();
+  const { t, locale, setLocale } = useI18n();
+  const { actions } = useActionHistory();
   const profile = useProfile(relayClient, identity?.publicKeyHex);
   const [name, setName] = useState("");
   const [about, setAbout] = useState("");
@@ -130,24 +140,69 @@ export function ProfileTab({ identity, minaAddress, relayClient, onPublish }: Pr
           {t("profile.identity")}
         </h3>
         <div>
-          <p className="mb-1 text-[11px] text-vil-faint">{t("profile.npub")}</p>
+          <div className="mb-1 flex items-center justify-between">
+            <p className="text-[11px] text-vil-faint">{t("profile.npub")}</p>
+            <CopyButton value={identity.npub} />
+          </div>
           <code className="block break-all font-mono text-[11px] leading-relaxed text-[#B9A6FF]">
             {identity.npub}
           </code>
         </div>
         <div>
-          <p className="mb-1 text-[11px] text-vil-faint">{t("profile.nsec")}</p>
+          <div className="mb-1 flex items-center justify-between">
+            <p className="text-[11px] text-vil-faint">{t("profile.nsec")}</p>
+            <CopyButton value={identity.nsec} />
+          </div>
           <code className="block break-all font-mono text-[11px] leading-relaxed text-[#B9A6FF]">
             {identity.nsec}
           </code>
         </div>
         {minaAddress && (
           <div>
-            <p className="mb-1 text-[11px] text-vil-faint">{t("profile.minaAddress")}</p>
+            <div className="mb-1 flex items-center justify-between">
+              <p className="text-[11px] text-vil-faint">{t("profile.minaAddress")}</p>
+              <CopyButton value={minaAddress} />
+            </div>
             <code className="block break-all font-mono text-[11px] leading-relaxed text-[#B9A6FF]">
               {minaAddress}
             </code>
           </div>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-2xl border border-vil-line bg-vil-surface p-4">
+        <h3 className="font-display text-[13px] font-bold uppercase tracking-wide text-vil-muted">
+          {t("profile.language")}
+        </h3>
+        <select
+          value={locale}
+          onChange={(e) => setLocale(e.target.value as SupportedLocale)}
+          className={inputClass}
+        >
+          {SUPPORTED_LOCALES.map((l) => (
+            <option key={l} value={l}>
+              {LOCALE_LABELS[l]}
+            </option>
+          ))}
+        </select>
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-2xl border border-vil-line bg-vil-surface p-4">
+        <h3 className="font-display text-[13px] font-bold uppercase tracking-wide text-vil-muted">
+          {t("profile.recentActivity")}
+        </h3>
+        {actions.length === 0 ? (
+          <p className="text-xs text-vil-muted">{t("profile.noActivity")}</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {actions.map((action) => (
+              <li key={action.id} className="rounded-xl bg-[#15131F] p-3 text-xs">
+                <p className="font-bold text-slate-200">{t(`history.${action.type}`)}</p>
+                <p className="mt-0.5 text-vil-faint">{action.detail}</p>
+                <p className="mt-1 text-[10px] text-vil-faint">{new Date(action.timestamp).toLocaleString(locale)}</p>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
     </div>

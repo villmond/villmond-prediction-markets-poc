@@ -6,11 +6,12 @@
  * throws a VersionError once the DB has already been upgraded past it).
  */
 export const DB_NAME = "villmond";
-export const DB_VERSION = 2;
+export const DB_VERSION = 3;
 
 export const STORES = {
   identity: "identity",
   minaWallet: "mina-wallet",
+  actionHistory: "action-history",
 } as const;
 
 export function openVillmondDb(): Promise<IDBDatabase> {

@@ -23,6 +23,24 @@ describe("IpfsClient", () => {
     );
   });
 
+  it("pins an arbitrary file (e.g. a resized market image) and returns the CID", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ Hash: "bafyImageCid" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new IpfsClient({ apiUrl: "http://localhost:5001" });
+    const blob = new Blob([new Uint8Array([1, 2, 3])], { type: "image/jpeg" });
+    const cid = await client.pinFile(blob, "cover.jpg");
+
+    expect(cid).toBe("bafyImageCid");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:5001/api/v0/add?pin=true",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
   it("throws when the pin API responds with a non-OK status", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
     const client = new IpfsClient();

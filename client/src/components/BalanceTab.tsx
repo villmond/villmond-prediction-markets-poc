@@ -17,11 +17,12 @@ interface Props {
 
 /**
  * VILCOIN here is a best-effort estimate, not a ledger — see
- * `useBalance.ts`'s doc comment. There's no event anywhere in this app that
- * records a resolved market's per-bettor payout, so this can only show
- * what's verifiably real: the configured starting grant minus every bet
- * you've signed and published. The Mina (Devnet) balance below it, by
- * contrast, is a real on-chain number, fetched live.
+ * `useBalance.ts`'s doc comment. Resolving oracles can now publish a kind:7002
+ * payout record (see `payout.ts`, wired up in `ResolveMarketPanel`), so wins
+ * are reflected here when one exists — but it's still a signed claim, not
+ * something enforced on-chain, so a payout only shows up if the oracle who
+ * resolved that specific market actually published one. The Mina (Devnet)
+ * balance below it, by contrast, is a real on-chain number, fetched live.
  */
 export function BalanceTab({ identity, relayClient, minaWallet, tokenName, startingBalance }: Props) {
   const { t, tn, locale } = useI18n();
@@ -79,6 +80,12 @@ export function BalanceTab({ identity, relayClient, minaWallet, tokenName, start
             <span>{tn("balance.stakedInBets", balance.betCount)}</span>
             <span className="text-vil-no">-{balance.totalStaked.toLocaleString(locale)}</span>
           </div>
+          {balance.payoutCount > 0 && (
+            <div className="flex justify-between">
+              <span>{tn("balance.payoutsReceived", balance.payoutCount)}</span>
+              <span className="text-vil-yes">+{balance.totalPayouts.toLocaleString(locale)}</span>
+            </div>
+          )}
         </div>
 
         <p className="text-[11px] text-vil-faint">{t("balance.caveat")}</p>

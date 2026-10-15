@@ -11,9 +11,20 @@ export function useCashierOrders(client: MarketRelayClient | null): CashierOrder
 
     setOrders(new Map());
 
-    const sub = client.subscribeToCashierOrders((order) => {
-      setOrders((prev) => new Map(prev).set(order.orderId, order));
-    });
+    const sub = client.subscribeToCashierOrders(
+      (order) => {
+        setOrders((prev) => new Map(prev).set(order.orderId, order));
+      },
+      undefined,
+      (orderId) => {
+        setOrders((prev) => {
+          if (!prev.has(orderId)) return prev;
+          const next = new Map(prev);
+          next.delete(orderId);
+          return next;
+        });
+      },
+    );
 
     return () => sub.close();
   }, [client]);

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" role="img" aria-label="Sports category">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="320" y2="180" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#FF7A45"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="180" fill="url(#g)"/>
+  <circle cx="160" cy="90" r="42" fill="none" stroke="#0B0A14" stroke-width="5" opacity="0.85"/>
+  <path d="M160 48 L160 132 M118 90 L202 90 M131 61 Q160 90 131 119 M189 61 Q160 90 189 119" stroke="#0B0A14" stroke-width="4" fill="none" opacity="0.85"/>
+</svg>

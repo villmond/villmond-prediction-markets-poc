@@ -14,7 +14,8 @@ export interface IpfsClientOptions {
   gateways?: string[];
 }
 
-const DEFAULT_GATEWAYS = ["https://ipfs.io/ipfs", "https://dweb.link/ipfs", "https://cloudflare-ipfs.com/ipfs"];
+/** Exported so UI code (e.g. `MarketImage`) can build the same gateway fallback chain without drifting from this client's own default. */
+export const DEFAULT_GATEWAYS = ["https://ipfs.io/ipfs", "https://dweb.link/ipfs", "https://cloudflare-ipfs.com/ipfs"];
 
 export class IpfsClient {
   private readonly apiUrl: string;
@@ -25,11 +26,9 @@ export class IpfsClient {
     this.gateways = options.gateways ?? DEFAULT_GATEWAYS;
   }
 
-  /** Pins a JSON-serializable value and returns its content identifier (CID). */
-  async pinJson(value: unknown): Promise<string> {
+  private async pinBlob(blob: Blob, filename: string): Promise<string> {
     const body = new FormData();
-    const blob = new Blob([JSON.stringify(value)], { type: "application/json" });
-    body.append("file", blob, "metadata.json");
+    body.append("file", blob, filename);
 
     const response = await fetch(`${this.apiUrl}/api/v0/add?pin=true`, {
       method: "POST",
@@ -42,6 +41,23 @@ export class IpfsClient {
 
     const result = (await response.json()) as { Hash: string };
     return result.Hash;
+  }
+
+  /** Pins a JSON-serializable value and returns its content identifier (CID). */
+  async pinJson(value: unknown): Promise<string> {
+    const blob = new Blob([JSON.stringify(value)], { type: "application/json" });
+    return this.pinBlob(blob, "metadata.json");
+  }
+
+  /**
+   * Pins a binary file (e.g. a market cover image, already resized
+   * client-side) and returns its CID. Caller decides what to do if this
+   * rejects — `CreateMarketModal` treats a failed image pin as non-fatal
+   * and publishes the market without an `image_cid` tag rather than
+   * blocking creation on it.
+   */
+  async pinFile(blob: Blob, filename = "image"): Promise<string> {
+    return this.pinBlob(blob, filename);
   }
 
   /** Fetches and parses JSON content for a CID, racing all configured gateways. */

@@ -56,6 +56,32 @@ export function buildCashierOrderEvent(params: CashierOrderParams, secretKey: Ui
   return finalizeEvent(template, secretKey);
 }
 
+/**
+ * Retracts a previously posted quote. Since `CASHIER_ORDER_KIND` is already
+ * parameterized-replaceable (NIP-01), republishing the same `d` tag with a
+ * `cancelled` marker is enough for relays to supersede the old quote — no
+ * separate NIP-09 deletion kind needed. `parseCashierOrderEvent` would
+ * reject this shape (no valid amount/price), so callers must check
+ * `isCashierOrderCancellation()` before parsing.
+ */
+export function buildCashierOrderCancellationEvent(orderId: string, secretKey: Uint8Array): NostrEvent {
+  const template: EventTemplate = {
+    kind: CASHIER_ORDER_KIND,
+    created_at: Math.floor(Date.now() / 1000),
+    tags: [
+      ["d", orderId],
+      ["cancelled", "true"],
+    ],
+    content: "",
+  };
+
+  return finalizeEvent(template, secretKey);
+}
+
+export function isCashierOrderCancellation(event: NostrEvent): boolean {
+  return event.kind === CASHIER_ORDER_KIND && event.tags.some((t) => t[0] === "cancelled" && t[1] === "true");
+}
+
 export function parseCashierOrderEvent(event: NostrEvent): CashierOrderParams {
   if (event.kind !== CASHIER_ORDER_KIND) {
     throw new Error(`Expected kind ${CASHIER_ORDER_KIND}, got ${event.kind}`);

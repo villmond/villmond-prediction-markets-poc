@@ -15,7 +15,7 @@ function validateConfig(parsed: Partial<VillmondConfig> | undefined): VillmondCo
     throw new Error("config.yaml is empty or invalid YAML");
   }
 
-  for (const section of ["app", "economy", "cashier_module", "network", "oracles"] as const) {
+  for (const section of ["app", "economy", "cashier_module", "network", "oracles", "markets"] as const) {
     if (!parsed[section]) {
       throw new Error(`config.yaml is missing required section: "${section}"`);
     }
@@ -23,6 +23,10 @@ function validateConfig(parsed: Partial<VillmondConfig> | undefined): VillmondCo
 
   if (!Array.isArray(parsed.network?.default_relays) || parsed.network.default_relays.length === 0) {
     throw new Error("config.yaml network.default_relays must be a non-empty array");
+  }
+
+  if (!Array.isArray(parsed.markets?.categories) || parsed.markets.categories.length === 0) {
+    throw new Error("config.yaml markets.categories must be a non-empty array");
   }
 
   return parsed as VillmondConfig;

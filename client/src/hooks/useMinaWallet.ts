@@ -16,6 +16,8 @@ export interface UseMinaWalletResult {
   faucetStatus: FaucetStatus;
   faucetError: string | undefined;
   requestFaucetFunds: () => Promise<void>;
+  /** Replaces the local wallet with one derived from a pasted base58 private key (same role Nostr's nsec import already fills). */
+  importMinaKey: (privateKeyBase58: string) => Promise<void>;
 }
 
 /**
@@ -70,5 +72,14 @@ export function useMinaWallet(): UseMinaWalletResult {
     }
   }, [wallet]);
 
-  return { wallet, loading, faucetStatus, faucetError, requestFaucetFunds };
+  const importMinaKey = useCallback(async (privateKeyBase58: string) => {
+    const privateKey = PrivateKey.fromBase58(privateKeyBase58.trim());
+    await saveMinaKey(privateKey.toBase58());
+    const publicKey = privateKey.toPublicKey();
+    setWallet({ privateKey, publicKey, address: publicKey.toBase58() });
+    setFaucetStatus("idle");
+    setFaucetError(undefined);
+  }, []);
+
+  return { wallet, loading, faucetStatus, faucetError, requestFaucetFunds, importMinaKey };
 }
