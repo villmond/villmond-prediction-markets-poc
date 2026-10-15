@@ -7,6 +7,7 @@ import {
   arbiterResolveEscrowOnChain,
 } from "../utils/minaContracts.js";
 import type { MinaWallet } from "../hooks/useMinaWallet.js";
+import { useI18n } from "../context/I18nContext.js";
 
 interface Props {
   minaWallet: MinaWallet | undefined;
@@ -32,6 +33,7 @@ function parseMinaAddress(input: string): PublicKey | undefined {
  * OracleReputationPanel's one-key-at-a-time lookup.
  */
 export function CashierEscrowPanel({ minaWallet }: Props) {
+  const { t } = useI18n();
   const [cashierAddr, setCashierAddr] = useState("");
   const [userAddr, setUserAddr] = useState("");
   const [arbiterAddr, setArbiterAddr] = useState("");
@@ -67,9 +69,9 @@ export function CashierEscrowPanel({ minaWallet }: Props) {
     setStatus(null);
     try {
       const hash = await action(minaWallet.privateKey);
-      setStatus(`Sent: ${hash.slice(0, 12)}…`);
+      setStatus(t("cashierEscrow.sent", { hash: hash.slice(0, 12) }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Transaction failed.");
+      setError(err instanceof Error ? err.message : t("cashierEscrow.transactionFailed"));
     } finally {
       setBusy(false);
     }
@@ -90,9 +92,9 @@ export function CashierEscrowPanel({ minaWallet }: Props) {
         deadlineValue,
       );
       setEscrowAddr(escrowAddress);
-      setStatus(`Locked at ${escrowAddress.slice(0, 12)}… (${hash.slice(0, 12)}…)`);
+      setStatus(t("cashierEscrow.locked", { address: escrowAddress.slice(0, 12), hash: hash.slice(0, 12) }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not lock escrow.");
+      setError(err instanceof Error ? err.message : t("cashierEscrow.lockErrorGeneric"));
     } finally {
       setBusy(false);
     }
@@ -101,17 +103,44 @@ export function CashierEscrowPanel({ minaWallet }: Props) {
   return (
     <section className="flex flex-col gap-4 rounded-2xl border border-vil-line bg-vil-surface p-4 text-sm">
       <h3 className="font-display text-[13px] font-bold uppercase tracking-wide text-vil-muted">
-        Cashier escrow (on-chain)
+        {t("cashierEscrow.title")}
       </h3>
 
       <div className="flex flex-col gap-2 border-b border-vil-line pb-3.5">
-        <span className="text-[11px] font-bold uppercase tracking-wide text-vil-muted">Lock a new escrow</span>
-        <input value={cashierAddr} onChange={(e) => setCashierAddr(e.target.value)} placeholder="Cashier Mina address" className={inputClass} />
-        <input value={userAddr} onChange={(e) => setUserAddr(e.target.value)} placeholder="User Mina address" className={inputClass} />
-        <input value={arbiterAddr} onChange={(e) => setArbiterAddr(e.target.value)} placeholder="Arbiter Mina address" className={inputClass} />
+        <span className="text-[11px] font-bold uppercase tracking-wide text-vil-muted">
+          {t("cashierEscrow.lockNew")}
+        </span>
+        <input
+          value={cashierAddr}
+          onChange={(e) => setCashierAddr(e.target.value)}
+          placeholder={t("cashierEscrow.cashierAddressPlaceholder")}
+          className={inputClass}
+        />
+        <input
+          value={userAddr}
+          onChange={(e) => setUserAddr(e.target.value)}
+          placeholder={t("cashierEscrow.userAddressPlaceholder")}
+          className={inputClass}
+        />
+        <input
+          value={arbiterAddr}
+          onChange={(e) => setArbiterAddr(e.target.value)}
+          placeholder={t("cashierEscrow.arbiterAddressPlaceholder")}
+          className={inputClass}
+        />
         <div className="grid grid-cols-2 gap-2">
-          <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount (VILCOIN)" className={inputClass} />
-          <input value={deadlineSlot} onChange={(e) => setDeadlineSlot(e.target.value)} placeholder="Deadline slot" className={inputClass} />
+          <input
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder={t("cashierEscrow.amountPlaceholder")}
+            className={inputClass}
+          />
+          <input
+            value={deadlineSlot}
+            onChange={(e) => setDeadlineSlot(e.target.value)}
+            placeholder={t("cashierEscrow.deadlineSlotPlaceholder")}
+            className={inputClass}
+          />
         </div>
         <button
           type="button"
@@ -119,16 +148,18 @@ export function CashierEscrowPanel({ minaWallet }: Props) {
           onClick={() => void lock()}
           className="rounded-xl bg-vil-ember py-2.5 text-sm font-bold text-vil-bg disabled:opacity-50"
         >
-          {busy ? "Working…" : "Lock escrow"}
+          {busy ? t("cashierEscrow.working") : t("cashierEscrow.lockEscrow")}
         </button>
       </div>
 
       <div className="flex flex-col gap-2">
-        <span className="text-[11px] font-bold uppercase tracking-wide text-vil-muted">Act on an existing escrow</span>
+        <span className="text-[11px] font-bold uppercase tracking-wide text-vil-muted">
+          {t("cashierEscrow.actOnExisting")}
+        </span>
         <input
           value={escrowAddr}
           onChange={(e) => setEscrowAddr(e.target.value)}
-          placeholder="Escrow contract address"
+          placeholder={t("cashierEscrow.escrowAddressPlaceholder")}
           className={inputClass}
         />
         <div className="flex gap-2">
@@ -138,7 +169,7 @@ export function CashierEscrowPanel({ minaWallet }: Props) {
             onClick={() => void run((privateKey) => releaseEscrowOnChain(escrowAddr.trim(), privateKey))}
             className="flex-1 rounded-lg border border-vil-line py-2 text-xs font-bold text-vil-yes disabled:opacity-50"
           >
-            Release (as cashier)
+            {t("cashierEscrow.release")}
           </button>
           <button
             type="button"
@@ -146,13 +177,13 @@ export function CashierEscrowPanel({ minaWallet }: Props) {
             onClick={() => void run((privateKey) => timeoutSlashEscrowOnChain(escrowAddr.trim(), privateKey))}
             className="flex-1 rounded-lg border border-vil-line py-2 text-xs font-bold text-vil-no disabled:opacity-50"
           >
-            Timeout slash
+            {t("cashierEscrow.timeoutSlash")}
           </button>
         </div>
         <div className="flex items-center gap-2">
           <label className="flex flex-1 items-center gap-2 text-xs text-vil-muted">
             <input type="checkbox" checked={favorUser} onChange={(e) => setFavorUser(e.target.checked)} />
-            Favor user (unchecked favors cashier)
+            {t("cashierEscrow.favorUser")}
           </label>
           <button
             type="button"
@@ -162,12 +193,12 @@ export function CashierEscrowPanel({ minaWallet }: Props) {
             }
             className="rounded-lg border border-vil-line px-3 py-2 text-xs font-bold text-vil-muted disabled:opacity-50"
           >
-            Arbiter resolve
+            {t("cashierEscrow.arbiterResolve")}
           </button>
         </div>
       </div>
 
-      {!minaWallet && <p className="text-[11px] text-vil-faint">Needs a Mina wallet to sign these actions.</p>}
+      {!minaWallet && <p className="text-[11px] text-vil-faint">{t("cashierEscrow.needsWallet")}</p>}
       {status && <p className="text-xs text-vil-yes">{status}</p>}
       {error && <p className="text-xs text-vil-no">{error}</p>}
     </section>

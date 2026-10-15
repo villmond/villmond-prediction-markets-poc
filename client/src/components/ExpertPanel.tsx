@@ -1,4 +1,5 @@
 import type { Event as NostrEvent } from "nostr-tools";
+import { useI18n } from "../context/I18nContext.js";
 
 interface Props {
   relays: string[];
@@ -11,11 +12,13 @@ interface Props {
  * admin) — see ProfileTab.tsx.
  */
 export function ExpertPanel({ relays, rawEvents }: Props) {
+  const { t } = useI18n();
+
   return (
     <div className="mx-4 mt-4 flex flex-col gap-3.5 text-sm">
       <section className="rounded-2xl border border-vil-line bg-vil-surface p-4">
         <h3 className="font-display text-[13px] font-bold uppercase tracking-wide text-vil-muted">
-          Connected relays
+          {t("expert.connectedRelays")}
         </h3>
         <ul className="mt-2.5 space-y-[7px]">
           {relays.map((relay) => (
@@ -30,13 +33,13 @@ export function ExpertPanel({ relays, rawEvents }: Props) {
       <section className="flex flex-col gap-2.5 rounded-2xl border border-vil-line bg-vil-surface p-4">
         <div className="flex items-center justify-between">
           <h3 className="font-display text-[13px] font-bold uppercase tracking-wide text-vil-muted">
-            Raw event log
+            {t("expert.rawEventLog")}
           </h3>
           <span className="text-[11px] text-vil-faint">{rawEvents.length}</span>
         </div>
         <div className="max-h-64 overflow-y-auto rounded-xl bg-[#100E1A] p-3">
           {rawEvents.length === 0 ? (
-            <p className="text-xs text-vil-muted">No events received yet.</p>
+            <p className="text-xs text-vil-muted">{t("expert.noEvents")}</p>
           ) : (
             rawEvents.map((event) => (
               <pre key={event.id} className="mb-2 overflow-x-auto font-mono text-[10px] leading-relaxed text-vil-muted">

@@ -5,6 +5,7 @@ import type { MarketListing } from "../hooks/useMarketEvents.js";
 import { hexToBytes } from "../utils/hex.js";
 import { buyOutcomeOnChain } from "../utils/minaContracts.js";
 import type { MinaWallet } from "../hooks/useMinaWallet.js";
+import { useI18n } from "../context/I18nContext.js";
 
 const ONE_TAP_AMOUNT = 10;
 
@@ -16,12 +17,12 @@ interface Props {
 }
 
 /** Formats a unix-seconds deadline as a short relative label, e.g. "closes in 18h". */
-function formatCloses(closesAt: number): string {
+function formatCloses(closesAt: number, t: (key: string, vars?: Record<string, string | number>) => string): string {
   const diffMs = closesAt * 1000 - Date.now();
-  if (diffMs <= 0) return "closed";
+  if (diffMs <= 0) return t("market.closed");
   const hours = Math.round(diffMs / 3_600_000);
-  if (hours < 24) return `closes in ${hours}h`;
-  return `closes in ${Math.round(hours / 24)}d`;
+  if (hours < 24) return t("market.closesInHours", { hours });
+  return t("market.closesInDays", { days: Math.round(hours / 24) });
 }
 
 /**
@@ -33,6 +34,7 @@ function formatCloses(closesAt: number): string {
  * created by other, Nostr-only clients) keep working exactly as before.
  */
 export function MarketCard({ listing, identity, minaWallet, onPublish }: Props) {
+  const { t } = useI18n();
   const { params } = listing;
   const [onChainStatus, setOnChainStatus] = useState<string | null>(null);
   const [onChainError, setOnChainError] = useState<string | null>(null);
@@ -48,13 +50,13 @@ export function MarketCard({ listing, identity, minaWallet, onPublish }: Props) 
 
     if (params.ledgerAddress && minaWallet) {
       setOnChainError(null);
-      setOnChainStatus("Sending on-chain buy to Mina Devnet…");
+      setOnChainStatus(t("market.onChainSending"));
       setPendingOutcome(outcomeIndex);
       buyOutcomeOnChain(params.ledgerAddress, minaWallet.privateKey, outcomeIndex, ONE_TAP_AMOUNT)
-        .then((hash) => setOnChainStatus(`On-chain buy sent: ${hash.slice(0, 12)}…`))
+        .then((hash) => setOnChainStatus(t("market.onChainSent", { hash: hash.slice(0, 12) })))
         .catch((err: unknown) => {
           setOnChainStatus(null);
-          setOnChainError(err instanceof Error ? err.message : "On-chain buy failed.");
+          setOnChainError(err instanceof Error ? err.message : t("market.onChainFailed"));
         })
         .finally(() => setPendingOutcome(null));
     }
@@ -64,9 +66,9 @@ export function MarketCard({ listing, identity, minaWallet, onPublish }: Props) 
     <div className="flex flex-col gap-3 rounded-[18px] border border-vil-line bg-vil-surface p-[18px]">
       <div className="flex items-center justify-between">
         <span className="rounded-full bg-vil-accent/15 px-2.5 py-1 text-[11px] font-bold text-[#B9A6FF]">
-          {params.outcomeType === "binary" ? "BINARY" : "MULTI"}
+          {params.outcomeType === "binary" ? t("market.binary") : t("market.multi")}
         </span>
-        <span className="text-[11px] text-vil-faint">{formatCloses(params.closesAt)}</span>
+        <span className="text-[11px] text-vil-faint">{formatCloses(params.closesAt, t)}</span>
       </div>
 
       <p className="font-display text-lg font-bold leading-snug text-slate-100">{params.question}</p>
@@ -92,8 +94,8 @@ export function MarketCard({ listing, identity, minaWallet, onPublish }: Props) 
 
       <p className="text-center text-[11px] text-vil-faint">
         {params.ledgerAddress
-          ? `One tap · stakes ${ONE_TAP_AMOUNT} VILCOIN · also sends a real on-chain buy (Mina Devnet)`
-          : `One tap · stakes ${ONE_TAP_AMOUNT} VILCOIN · live odds need on-chain AMM data (upcoming)`}
+          ? t("market.tapOnChain", { amount: ONE_TAP_AMOUNT })
+          : t("market.tapOffChain", { amount: ONE_TAP_AMOUNT })}
       </p>
       {onChainStatus && <p className="text-center text-[11px] text-vil-yes">{onChainStatus}</p>}
       {onChainError && <p className="text-center text-[11px] text-vil-no">{onChainError}</p>}

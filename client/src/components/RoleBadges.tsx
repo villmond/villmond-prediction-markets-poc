@@ -1,13 +1,15 @@
 import type { UserRole } from "../utils/roles.js";
+import { useI18n } from "../context/I18nContext.js";
 
-const LABELS: Record<UserRole, string> = {
-  admin: "Platform admin (fee recipient)",
-  oracle: "Designated oracle",
-  cashier: "Designated cashier",
+const LABEL_KEYS: Record<UserRole, string> = {
+  admin: "roles.admin",
+  oracle: "roles.oracle",
+  cashier: "roles.cashier",
 };
 
 /** Informational-only role chips — see `utils/roles.ts` for why these never gate anything. */
 export function RoleBadges({ roles }: { roles: UserRole[] }) {
+  const { t } = useI18n();
   if (roles.length === 0) return null;
 
   return (
@@ -17,7 +19,7 @@ export function RoleBadges({ roles }: { roles: UserRole[] }) {
           key={role}
           className="rounded-full border border-vil-accent/30 bg-vil-accent/10 px-2.5 py-1 text-[11px] font-bold text-[#B9A6FF]"
         >
-          {LABELS[role]}
+          {t(LABEL_KEYS[role])}
         </span>
       ))}
     </div>

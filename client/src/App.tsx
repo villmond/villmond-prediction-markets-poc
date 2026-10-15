@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { VillmondConfig } from "@villmond/nostr/config.js";
 import type { CashierCurrency } from "@villmond/nostr/cashierOrders.js";
 import { ModeProvider, useMode } from "./context/ModeContext.js";
+import { I18nProvider } from "./context/I18nContext.js";
 import { useIdentity } from "./hooks/useIdentity.js";
 import { useRelayClient, publishEvent } from "./hooks/useRelayClient.js";
 import { useMarketEvents } from "./hooks/useMarketEvents.js";
@@ -174,17 +175,17 @@ export function App() {
       .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
   }, []);
 
-  if (error) {
-    return <SplashScreen error={error} />;
-  }
-
-  if (!config) {
-    return <SplashScreen />;
-  }
-
   return (
-    <ModeProvider>
-      <AppShell config={config} />
-    </ModeProvider>
+    <I18nProvider>
+      {error ? (
+        <SplashScreen error={error} />
+      ) : !config ? (
+        <SplashScreen />
+      ) : (
+        <ModeProvider>
+          <AppShell config={config} />
+        </ModeProvider>
+      )}
+    </I18nProvider>
   );
 }

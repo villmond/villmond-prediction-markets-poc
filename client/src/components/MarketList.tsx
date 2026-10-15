@@ -5,6 +5,7 @@ import { MarketCard } from "./MarketCard.js";
 import { CreateMarketModal } from "./CreateMarketModal.js";
 import type { MarketListing } from "../hooks/useMarketEvents.js";
 import type { MinaWallet } from "../hooks/useMinaWallet.js";
+import { useI18n } from "../context/I18nContext.js";
 
 interface Props {
   markets: MarketListing[];
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function MarketList({ markets, identity, minaWallet, onPublish }: Props) {
+  const { t } = useI18n();
   const [creating, setCreating] = useState(false);
 
   return (
@@ -24,13 +26,11 @@ export function MarketList({ markets, identity, minaWallet, onPublish }: Props) 
         onClick={() => setCreating(true)}
         className="w-full rounded-xl border border-dashed border-vil-line py-3 text-sm font-bold text-vil-ember disabled:opacity-50"
       >
-        + New market
+        {t("markets.newMarket")}
       </button>
 
       {markets.length === 0 ? (
-        <p className="mt-2 text-center text-sm text-vil-muted">
-          No markets yet. Listening to the configured relays for new ones…
-        </p>
+        <p className="mt-2 text-center text-sm text-vil-muted">{t("markets.empty")}</p>
       ) : (
         markets.map((listing) => (
           <MarketCard

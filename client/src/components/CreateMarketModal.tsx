@@ -7,13 +7,14 @@ import type { Event as NostrEvent } from "nostr-tools";
 import { hexToBytes } from "../utils/hex.js";
 import { deployMarketContracts } from "../utils/minaContracts.js";
 import type { MinaWallet } from "../hooks/useMinaWallet.js";
+import { useI18n } from "../context/I18nContext.js";
 
 const CLOSES_IN_OPTIONS = [
-  { label: "6 hours", hours: 6 },
-  { label: "1 day", hours: 24 },
-  { label: "3 days", hours: 72 },
-  { label: "1 week", hours: 24 * 7 },
-  { label: "2 weeks", hours: 24 * 14 },
+  { labelKey: "createMarket.closes6h", hours: 6 },
+  { labelKey: "createMarket.closes1d", hours: 24 },
+  { labelKey: "createMarket.closes3d", hours: 72 },
+  { labelKey: "createMarket.closes1w", hours: 24 * 7 },
+  { labelKey: "createMarket.closes2w", hours: 24 * 14 },
 ] as const;
 
 const MAX_OUTCOMES = 6;
@@ -51,9 +52,10 @@ function resolveMinaPublicKey(input: string): PublicKey | undefined {
  * "informational directory, not an access gate" design in roles.ts).
  */
 export function CreateMarketModal({ identity, minaWallet, onPublish, onClose }: Props) {
+  const { t } = useI18n();
   const [question, setQuestion] = useState("");
   const [outcomeType, setOutcomeType] = useState<MarketOutcomeType>("binary");
-  const [outcomes, setOutcomes] = useState<string[]>(["Yes", "No"]);
+  const [outcomes, setOutcomes] = useState<string[]>([t("createMarket.defaultYes"), t("createMarket.defaultNo")]);
   const [closesInHours, setClosesInHours] = useState<number>(CLOSES_IN_OPTIONS[1].hours);
   const [deployOnChain, setDeployOnChain] = useState(false);
   const [initialLiquidity, setInitialLiquidity] = useState("1000");
@@ -91,7 +93,7 @@ export function CreateMarketModal({ identity, minaWallet, onPublish, onClose }: 
 
   function switchType(next: MarketOutcomeType) {
     setOutcomeType(next);
-    setOutcomes(next === "binary" ? ["Yes", "No"] : ["", ""]);
+    setOutcomes(next === "binary" ? [t("createMarket.defaultYes"), t("createMarket.defaultNo")] : ["", ""]);
   }
 
   async function submit() {
@@ -111,7 +113,7 @@ export function CreateMarketModal({ identity, minaWallet, onPublish, onClose }: 
       let settlementAddress: string | undefined;
 
       if (deployOnChain && minaWallet && oraclePublicKey) {
-        setDeployStep("Deploying on-chain contracts to Mina Devnet (first compile can take a minute)…");
+        setDeployStep(t("createMarket.deploying"));
         const deployed = await deployMarketContracts(
           minaWallet.privateKey,
           liquidityAmount,
@@ -143,8 +145,8 @@ export function CreateMarketModal({ identity, minaWallet, onPublish, onClose }: 
       setDeployStep(null);
       setError(
         err instanceof Error
-          ? `Could not publish this market: ${err.message}. Pinning needs a reachable IPFS node (DEPLOYMENT.md §2); on-chain deployment needs a Devnet-funded Mina wallet (DEPLOYMENT.md §1).`
-          : "Could not publish this market.",
+          ? t("createMarket.publishErrorWithMessage", { message: err.message })
+          : t("createMarket.publishErrorGeneric"),
       );
     } finally {
       setSubmitting(false);
@@ -158,21 +160,21 @@ export function CreateMarketModal({ identity, minaWallet, onPublish, onClose }: 
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center sm:p-6">
       <div className="flex max-h-[90vh] w-full max-w-sm flex-col gap-3.5 overflow-y-auto rounded-t-[24px] border border-vil-line bg-vil-surface p-6 sm:rounded-[24px]">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-lg font-bold text-slate-100">New market</h2>
+          <h2 className="font-display text-lg font-bold text-slate-100">{t("createMarket.title")}</h2>
           <button type="button" onClick={onClose} className="text-sm font-semibold text-vil-muted">
-            Cancel
+            {t("createMarket.cancel")}
           </button>
         </div>
 
         <div className="flex flex-col gap-1.5">
           <label className="text-[11px] font-bold uppercase tracking-wide text-vil-muted" htmlFor="vl-question">
-            Question
+            {t("createMarket.question")}
           </label>
           <textarea
             id="vl-question"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Will it rain in San Francisco tomorrow?"
+            placeholder={t("createMarket.questionPlaceholder")}
             rows={2}
             className={inputClass}
           />
@@ -187,7 +189,7 @@ export function CreateMarketModal({ identity, minaWallet, onPublish, onClose }: 
               (outcomeType === "binary" ? "bg-vil-accent text-vil-bg" : "bg-[#100E1A] text-vil-muted")
             }
           >
-            Binary (Yes/No)
+            {t("createMarket.binary")}
           </button>
           <button
             type="button"
@@ -197,18 +199,20 @@ export function CreateMarketModal({ identity, minaWallet, onPublish, onClose }: 
               (outcomeType === "multi" ? "bg-vil-accent text-vil-bg" : "bg-[#100E1A] text-vil-muted")
             }
           >
-            Multiple choice
+            {t("createMarket.multi")}
           </button>
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wide text-vil-muted">Outcomes</span>
+          <span className="text-[11px] font-bold uppercase tracking-wide text-vil-muted">
+            {t("createMarket.outcomes")}
+          </span>
           {outcomes.map((outcome, index) => (
             <div key={index} className="flex gap-2">
               <input
                 value={outcome}
                 onChange={(e) => updateOutcome(index, e.target.value)}
-                placeholder={`Outcome ${index + 1}`}
+                placeholder={t("createMarket.outcomePlaceholder", { n: index + 1 })}
                 className={inputClass + " flex-1"}
               />
               {outcomeType === "multi" && outcomes.length > 2 && (
@@ -216,7 +220,7 @@ export function CreateMarketModal({ identity, minaWallet, onPublish, onClose }: 
                   type="button"
                   onClick={() => removeOutcome(index)}
                   className="rounded-lg border border-vil-line px-2.5 text-sm font-bold text-vil-no"
-                  aria-label={`Remove outcome ${index + 1}`}
+                  aria-label={t("createMarket.removeOutcome", { n: index + 1 })}
                 >
                   ×
                 </button>
@@ -225,14 +229,14 @@ export function CreateMarketModal({ identity, minaWallet, onPublish, onClose }: 
           ))}
           {outcomeType === "multi" && outcomes.length < MAX_OUTCOMES && (
             <button type="button" onClick={addOutcome} className="text-left text-xs font-bold text-vil-ember">
-              + Add outcome
+              {t("createMarket.addOutcome")}
             </button>
           )}
         </div>
 
         <div className="flex flex-col gap-1.5">
           <label className="text-[11px] font-bold uppercase tracking-wide text-vil-muted" htmlFor="vl-closes">
-            Closes in
+            {t("createMarket.closesIn")}
           </label>
           <select
             id="vl-closes"
@@ -242,7 +246,7 @@ export function CreateMarketModal({ identity, minaWallet, onPublish, onClose }: 
           >
             {CLOSES_IN_OPTIONS.map((opt) => (
               <option key={opt.hours} value={opt.hours}>
-                {opt.label}
+                {t(opt.labelKey)}
               </option>
             ))}
           </select>
@@ -256,33 +260,29 @@ export function CreateMarketModal({ identity, minaWallet, onPublish, onClose }: 
               onChange={(e) => setDeployOnChain(e.target.checked)}
               disabled={!minaWallet}
             />
-            Deploy real on-chain contracts (Mina Devnet)
+            {t("createMarket.deployOnChain")}
           </label>
 
-          {!minaWallet && (
-            <p className="text-[11px] text-vil-faint">Needs a Mina wallet — open Expert Mode to generate one.</p>
-          )}
+          {!minaWallet && <p className="text-[11px] text-vil-faint">{t("createMarket.needsWallet")}</p>}
 
           {deployOnChain && minaWallet && (
             <div className="flex flex-col gap-1.5">
               <input
                 value={initialLiquidity}
                 onChange={(e) => setInitialLiquidity(e.target.value)}
-                placeholder="Initial liquidity (VILCOIN)"
+                placeholder={t("createMarket.liquidityPlaceholder")}
                 className={inputClass}
               />
               <input
                 value={oracleAddress}
                 onChange={(e) => setOracleAddress(e.target.value)}
-                placeholder="Oracle's Mina address (B62q…)"
+                placeholder={t("createMarket.oraclePlaceholder")}
                 className={inputClass}
               />
               {oracleAddress.trim() && !oraclePublicKey && (
-                <p className="text-[11px] text-vil-no">Not a valid Mina public key.</p>
+                <p className="text-[11px] text-vil-no">{t("createMarket.invalidOracleKey")}</p>
               )}
-              <p className="text-[11px] text-vil-faint">
-                Your own Mina wallet becomes this market's admin; your wallet pays the deploy/seed/configure fees.
-              </p>
+              <p className="text-[11px] text-vil-faint">{t("createMarket.adminNote")}</p>
             </div>
           )}
         </div>
@@ -296,7 +296,11 @@ export function CreateMarketModal({ identity, minaWallet, onPublish, onClose }: 
           onClick={() => void submit()}
           className="mt-1 w-full rounded-xl bg-vil-ember py-3 text-sm font-bold text-vil-bg disabled:opacity-50"
         >
-          {submitting ? (deployStep ? "Deploying…" : "Publishing…") : "Publish market"}
+          {submitting
+            ? deployStep
+              ? t("createMarket.deployingButton")
+              : t("createMarket.publishingButton")
+            : t("createMarket.publishButton")}
         </button>
       </div>
     </div>

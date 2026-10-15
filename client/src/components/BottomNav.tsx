@@ -1,5 +1,6 @@
 import { useMode, type UxView } from "../context/ModeContext.js";
 import { isViewAllowed, type UserRole } from "../utils/roles.js";
+import { useI18n } from "../context/I18nContext.js";
 
 interface Props {
   roles: UserRole[];
@@ -8,17 +9,21 @@ interface Props {
 
 interface Tab {
   view: UxView;
-  label: string;
+  labelKey: string;
   d: string;
 }
 
 const ALL_TABS: Tab[] = [
-  { view: "markets", label: "Markets", d: "M4 11 L12 4 L20 11 V20 H4 Z" },
-  { view: "balance", label: "Balance", d: "M4 10h16M4 10l8-6 8 6M4 10v9h16v-9M9 14v3M15 14v3" },
-  { view: "oracle", label: "Oracle", d: "M2 12 C5 6, 19 6, 22 12 C19 18, 5 18, 2 12 Z M12 15a3 3 0 100-6 3 3 0 000 6Z" },
-  { view: "cashier", label: "Cashier", d: "M4 7h13M13 3l4 4-4 4M20 17H7M11 21l-4-4 4-4" },
-  { view: "expert", label: "Expert", d: "M4 18 L9 11 L13 15 L20 6" },
-  { view: "profile", label: "Profile", d: "M12 12a4 4 0 100-8 4 4 0 000 8ZM4 20c0-4 4-6 8-6s8 2 8 6" },
+  { view: "markets", labelKey: "nav.markets", d: "M4 11 L12 4 L20 11 V20 H4 Z" },
+  { view: "balance", labelKey: "nav.balance", d: "M4 10h16M4 10l8-6 8 6M4 10v9h16v-9M9 14v3M15 14v3" },
+  {
+    view: "oracle",
+    labelKey: "nav.oracle",
+    d: "M2 12 C5 6, 19 6, 22 12 C19 18, 5 18, 2 12 Z M12 15a3 3 0 100-6 3 3 0 000 6Z",
+  },
+  { view: "cashier", labelKey: "nav.cashier", d: "M4 7h13M13 3l4 4-4 4M20 17H7M11 21l-4-4 4-4" },
+  { view: "expert", labelKey: "nav.expert", d: "M4 18 L9 11 L13 15 L20 6" },
+  { view: "profile", labelKey: "nav.profile", d: "M12 12a4 4 0 100-8 4 4 0 000 8ZM4 20c0-4 4-6 8-6s8 2 8 6" },
 ];
 
 /**
@@ -30,6 +35,7 @@ const ALL_TABS: Tab[] = [
  */
 export function BottomNav({ roles, cashierEnabled }: Props) {
   const { view, setView } = useMode();
+  const { t } = useI18n();
   const tabs = ALL_TABS.filter((tab) => isViewAllowed(tab.view, roles, cashierEnabled));
 
   return (
@@ -54,7 +60,7 @@ export function BottomNav({ roles, cashierEnabled }: Props) {
               />
             </svg>
             <span className={"text-[10px] font-bold " + (active ? "text-vil-accent" : "text-[#716C8A] font-semibold")}>
-              {tab.label}
+              {t(tab.labelKey)}
             </span>
           </button>
         );

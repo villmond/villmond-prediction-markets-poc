@@ -2,6 +2,7 @@ import { useState } from "react";
 import { resolveMarketOnChain } from "../utils/minaContracts.js";
 import type { MinaWallet } from "../hooks/useMinaWallet.js";
 import type { MarketListing } from "../hooks/useMarketEvents.js";
+import { useI18n } from "../context/I18nContext.js";
 
 interface Props {
   markets: MarketListing[];
@@ -20,6 +21,7 @@ const inputClass =
  * "informational directory, not an access gate" role badges.
  */
 export function ResolveMarketPanel({ markets, minaWallet }: Props) {
+  const { t } = useI18n();
   const resolvable = markets.filter((m) => m.params.settlementAddress);
   const [marketId, setMarketId] = useState("");
   const [winningOutcome, setWinningOutcome] = useState(0);
@@ -45,9 +47,9 @@ export function ResolveMarketPanel({ markets, minaWallet }: Props) {
         winningOutcome,
         totalPoolAmount,
       );
-      setResult(`Resolution sent: ${hash.slice(0, 12)}…`);
+      setResult(t("resolveMarket.resultSent", { hash: hash.slice(0, 12) }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not resolve this market.");
+      setError(err instanceof Error ? err.message : t("resolveMarket.errorGeneric"));
     } finally {
       setSubmitting(false);
     }
@@ -55,13 +57,12 @@ export function ResolveMarketPanel({ markets, minaWallet }: Props) {
 
   return (
     <section className="flex flex-col gap-3 rounded-2xl border border-vil-line bg-vil-surface p-4 text-sm">
-      <h3 className="font-display text-[13px] font-bold uppercase tracking-wide text-vil-muted">Resolve a market</h3>
+      <h3 className="font-display text-[13px] font-bold uppercase tracking-wide text-vil-muted">
+        {t("resolveMarket.title")}
+      </h3>
 
       {resolvable.length === 0 ? (
-        <p className="text-xs text-vil-muted">
-          No markets with an on-chain settlement contract seen yet. Create one with "Deploy real on-chain contracts"
-          checked.
-        </p>
+        <p className="text-xs text-vil-muted">{t("resolveMarket.noMarkets")}</p>
       ) : (
         <>
           <select
@@ -72,7 +73,7 @@ export function ResolveMarketPanel({ markets, minaWallet }: Props) {
             }}
             className={inputClass}
           >
-            <option value="">Select a market…</option>
+            <option value="">{t("resolveMarket.selectMarket")}</option>
             {resolvable.map((m) => (
               <option key={m.params.marketId} value={m.params.marketId}>
                 {m.params.question}
@@ -89,20 +90,20 @@ export function ResolveMarketPanel({ markets, minaWallet }: Props) {
               >
                 {selected.params.outcomes.map((outcome, index) => (
                   <option key={outcome} value={index}>
-                    Winner: {outcome}
+                    {t("resolveMarket.winner", { outcome })}
                   </option>
                 ))}
               </select>
               <input
                 value={totalPool}
                 onChange={(e) => setTotalPool(e.target.value)}
-                placeholder="Total pool (VILCOIN)"
+                placeholder={t("resolveMarket.totalPoolPlaceholder")}
                 className={inputClass}
               />
             </>
           )}
 
-          {!minaWallet && <p className="text-[11px] text-vil-faint">Needs a Mina wallet to sign the resolution.</p>}
+          {!minaWallet && <p className="text-[11px] text-vil-faint">{t("resolveMarket.needsWallet")}</p>}
           {result && <p className="text-xs text-vil-yes">{result}</p>}
           {error && <p className="text-xs text-vil-no">{error}</p>}
 
@@ -112,7 +113,7 @@ export function ResolveMarketPanel({ markets, minaWallet }: Props) {
             onClick={() => void resolve()}
             className="rounded-xl bg-vil-ember py-2.5 text-sm font-bold text-vil-bg disabled:opacity-50"
           >
-            {submitting ? "Resolving…" : "Resolve market"}
+            {submitting ? t("resolveMarket.resolving") : t("resolveMarket.submit")}
           </button>
         </>
       )}

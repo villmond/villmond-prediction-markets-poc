@@ -1,20 +1,12 @@
 import { useState } from "react";
+import { useI18n } from "../context/I18nContext.js";
 
 const STORAGE_KEY = "villmond:onboarding-complete";
 
-const STEPS = [
-  {
-    title: "Welcome to Villmond Markets",
-    body: "VILCOIN is a free, risk-free reputation score — it can't be bought, sold, or cashed out. Predict outcomes to build your track record.",
-  },
-  {
-    title: "Odds shift as people bet",
-    body: "Each market shows the outcomes people are predicting. As more players weigh in, the odds move to reflect the crowd's view.",
-  },
-  {
-    title: "Ready to predict",
-    body: "Tap an outcome on any market to place your first prediction. You can switch to Expert Mode any time for deeper analytics.",
-  },
+const STEP_KEYS = [
+  { titleKey: "onboarding.step1.title", bodyKey: "onboarding.step1.body" },
+  { titleKey: "onboarding.step2.title", bodyKey: "onboarding.step2.body" },
+  { titleKey: "onboarding.step3.title", bodyKey: "onboarding.step3.body" },
 ] as const;
 
 function readCompleted(): boolean {
@@ -34,13 +26,14 @@ function markCompleted() {
 }
 
 export function OnboardingWizard() {
+  const { t } = useI18n();
   const [dismissed, setDismissed] = useState(readCompleted);
   const [step, setStep] = useState(0);
 
   if (dismissed) return null;
 
-  const isLastStep = step === STEPS.length - 1;
-  const current = STEPS[step];
+  const isLastStep = step === STEP_KEYS.length - 1;
+  const current = STEP_KEYS[step];
 
   function finish() {
     markCompleted();
@@ -60,11 +53,11 @@ export function OnboardingWizard() {
           </svg>
         </div>
 
-        <h2 className="font-display text-[22px] font-bold leading-tight text-slate-100">{current.title}</h2>
-        <p className="text-[15px] leading-relaxed text-[#C9C4DE]">{current.body}</p>
+        <h2 className="font-display text-[22px] font-bold leading-tight text-slate-100">{t(current.titleKey)}</h2>
+        <p className="text-[15px] leading-relaxed text-[#C9C4DE]">{t(current.bodyKey)}</p>
 
         <div className="flex gap-1.5">
-          {STEPS.map((_, index) => (
+          {STEP_KEYS.map((_, index) => (
             <span
               key={index}
               className={"h-[5px] w-[22px] rounded-full " + (index === step ? "bg-vil-ember" : "bg-[#39344F]")}
@@ -74,14 +67,14 @@ export function OnboardingWizard() {
 
         <div className="mt-1 flex w-full items-center justify-between">
           <button type="button" onClick={finish} className="px-1 py-2.5 text-sm font-semibold text-vil-muted">
-            Skip
+            {t("onboarding.skip")}
           </button>
           <button
             type="button"
             onClick={() => (isLastStep ? finish() : setStep(step + 1))}
             className="rounded-full bg-vil-ember px-[26px] py-[11px] text-sm font-bold text-vil-bg"
           >
-            {isLastStep ? "Start predicting" : "Next"}
+            {isLastStep ? t("onboarding.start") : t("onboarding.next")}
           </button>
         </div>
       </div>

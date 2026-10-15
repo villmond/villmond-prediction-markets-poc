@@ -6,6 +6,7 @@ import type { Event as NostrEvent } from "nostr-tools";
 import { useOracleReputation } from "../hooks/useOracleReputation.js";
 import { useRelayClient } from "../hooks/useRelayClient.js";
 import { hexToBytes } from "../utils/hex.js";
+import { useI18n } from "../context/I18nContext.js";
 
 interface Props {
   relays: string[];
@@ -28,6 +29,7 @@ function resolvePublicKeyHex(input: string): string | undefined {
 
 /** Expert-mode oracle lookup + rating form (PRD 5.4). No oracle directory exists yet, so this looks up one key at a time. */
 export function OracleReputationPanel({ relays, identity, minReputationThreshold, onPublish }: Props) {
+  const { t, tn } = useI18n();
   const [lookup, setLookup] = useState("");
   const [score, setScore] = useState(5);
   const [review, setReview] = useState("");
@@ -48,37 +50,36 @@ export function OracleReputationPanel({ relays, identity, minReputationThreshold
       onPublish(event);
       setReview("");
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Could not publish this rating.");
+      setSubmitError(err instanceof Error ? err.message : t("oracle.submitErrorGeneric"));
     }
   }
 
   return (
     <section className="flex flex-col gap-3 rounded-2xl border border-vil-line bg-vil-surface p-4 text-sm">
       <h3 className="font-display text-[13px] font-bold uppercase tracking-wide text-vil-muted">
-        Oracle reputation
+        {t("oracle.title")}
       </h3>
 
       <input
         value={lookup}
         onChange={(e) => setLookup(e.target.value)}
-        placeholder="Oracle npub or hex public key"
+        placeholder={t("oracle.lookupPlaceholder")}
         className="rounded-[10px] border border-vil-line bg-[#100E1A] px-3 py-2.5 text-[13px] text-slate-100 placeholder:text-vil-faint"
       />
 
-      {lookup.trim() && !oraclePublicKey && (
-        <p className="text-xs text-vil-no">Not a valid npub or hex public key.</p>
-      )}
+      {lookup.trim() && !oraclePublicKey && <p className="text-xs text-vil-no">{t("oracle.invalidKey")}</p>}
 
       {oraclePublicKey && reputation && (
         <div className="rounded-xl bg-[#15131F] p-3 text-xs">
           <p className="text-slate-200">
-            Average score: <span className="font-bold">{reputation.averageScore.toFixed(2)}</span> (
-            {reputation.ratingCount} rating{reputation.ratingCount === 1 ? "" : "s"})
+            {tn("oracle.averageScoreWithCount", reputation.ratingCount, {
+              score: reputation.averageScore.toFixed(2),
+            })}
           </p>
           <p className={reputation.meetsThreshold(minReputationThreshold) ? "text-vil-yes" : "text-vil-no"}>
             {reputation.meetsThreshold(minReputationThreshold)
-              ? `Meets the configured minimum (${minReputationThreshold})`
-              : `Below the configured minimum (${minReputationThreshold})`}
+              ? t("oracle.meetsMinimum", { threshold: minReputationThreshold })
+              : t("oracle.belowMinimum", { threshold: minReputationThreshold })}
           </p>
         </div>
       )}
@@ -86,7 +87,7 @@ export function OracleReputationPanel({ relays, identity, minReputationThreshold
       {oraclePublicKey && (
         <div className="flex flex-col gap-2 border-t border-vil-line pt-3">
           <label className="text-[11px] font-bold uppercase tracking-wide text-vil-muted" htmlFor="vl-oracle-score">
-            Your rating
+            {t("oracle.yourRating")}
           </label>
           <select
             id="vl-oracle-score"
@@ -103,7 +104,7 @@ export function OracleReputationPanel({ relays, identity, minReputationThreshold
           <textarea
             value={review}
             onChange={(e) => setReview(e.target.value)}
-            placeholder="Optional review"
+            placeholder={t("oracle.reviewPlaceholder")}
             rows={2}
             className="rounded-[10px] border border-vil-line bg-[#100E1A] px-3 py-2.5 text-[13px] text-slate-100 placeholder:text-vil-faint"
           />
@@ -114,7 +115,7 @@ export function OracleReputationPanel({ relays, identity, minReputationThreshold
             onClick={submitRating}
             className="rounded-xl bg-vil-ember py-2.5 text-sm font-bold text-vil-bg disabled:opacity-50"
           >
-            Submit rating
+            {t("oracle.submitRating")}
           </button>
         </div>
       )}
