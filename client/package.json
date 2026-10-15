@@ -16,7 +16,7 @@
     "o1js": "^3.1.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "js-yaml": "^4.1.0",
+    "js-yaml": "^5.4.3",
     "nostr-tools": "^2.25.2"
   },
   "devDependencies": {

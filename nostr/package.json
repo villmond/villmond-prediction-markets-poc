@@ -16,7 +16,7 @@
     "lint": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "js-yaml": "^4.1.0",
+    "js-yaml": "^5.4.3",
     "nostr-tools": "^2.10.4"
   },
   "devDependencies": {
