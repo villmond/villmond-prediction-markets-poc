@@ -8,12 +8,14 @@ import { hexToBytes } from "../utils/hex.js";
 import { useI18n, SUPPORTED_LOCALES } from "../context/I18nContext.js";
 import type { SupportedLocale } from "../utils/i18n.js";
 import { useActionHistory } from "../hooks/useActionHistory.js";
+import { resetAppData } from "../utils/resetApp.js";
 import { CopyButton } from "./CopyButton.js";
 
 interface Props {
   identity: VillmondKeypair | undefined;
-  minaAddress: string | undefined;
   relayClient: MarketRelayClient | null;
+  /** Replaces the local identity (and, transitively, the Mina wallet derived from it) with the one for a pasted nsec. */
+  onImportIdentity: (nsec: string) => Promise<void>;
   onPublish: (event: NostrEvent) => void;
 }
 
@@ -32,7 +34,7 @@ const LOCALE_LABELS: Record<SupportedLocale, string> = {
  * identity/key export — moved here from the old Expert-mode panel so
  * backing up your nsec isn't locked behind the now admin-only Expert tab.
  */
-export function ProfileTab({ identity, minaAddress, relayClient, onPublish }: Props) {
+export function ProfileTab({ identity, relayClient, onImportIdentity, onPublish }: Props) {
   const { t, locale, setLocale } = useI18n();
   const { actions } = useActionHistory();
   const profile = useProfile(relayClient, identity?.publicKeyHex);
@@ -42,6 +44,39 @@ export function ProfileTab({ identity, minaAddress, relayClient, onPublish }: Pr
   const [touched, setTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [showIdentityImport, setShowIdentityImport] = useState(false);
+  const [identityImportValue, setIdentityImportValue] = useState("");
+  const [identityImportError, setIdentityImportError] = useState<string | undefined>(undefined);
+  const [importingIdentity, setImportingIdentity] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetError, setResetError] = useState<string | undefined>(undefined);
+
+  async function doImportIdentity() {
+    setImportingIdentity(true);
+    setIdentityImportError(undefined);
+    try {
+      await onImportIdentity(identityImportValue);
+      setIdentityImportValue("");
+      setShowIdentityImport(false);
+    } catch (err) {
+      setIdentityImportError(err instanceof Error ? err.message : t("profile.importIdentityErrorGeneric"));
+    } finally {
+      setImportingIdentity(false);
+    }
+  }
+
+  async function doReset() {
+    setResetting(true);
+    setResetError(undefined);
+    try {
+      await resetAppData();
+      window.location.reload();
+    } catch (err) {
+      setResetError(err instanceof Error ? err.message : t("profile.resetErrorGeneric"));
+      setResetting(false);
+    }
+  }
 
   useEffect(() => {
     if (touched) return;
@@ -157,17 +192,49 @@ export function ProfileTab({ identity, minaAddress, relayClient, onPublish }: Pr
             {identity.nsec}
           </code>
         </div>
-        {minaAddress && (
-          <div>
-            <div className="mb-1 flex items-center justify-between">
-              <p className="text-[11px] text-vil-faint">{t("profile.minaAddress")}</p>
-              <CopyButton value={minaAddress} />
+        <div className="border-t border-vil-line pt-3">
+          {showIdentityImport ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-[11px] text-vil-faint">{t("profile.importIdentityWarning")}</p>
+              <input
+                value={identityImportValue}
+                onChange={(e) => setIdentityImportValue(e.target.value)}
+                placeholder={t("profile.importIdentityPlaceholder")}
+                className={inputClass}
+              />
+              {identityImportError && <p className="text-xs text-vil-no">{identityImportError}</p>}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={importingIdentity || !identityImportValue.trim()}
+                  onClick={() => void doImportIdentity()}
+                  className="flex-1 rounded-lg bg-vil-ember py-2 text-xs font-bold text-vil-bg disabled:opacity-50"
+                >
+                  {importingIdentity ? t("profile.importingIdentity") : t("profile.importIdentityConfirm")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowIdentityImport(false);
+                    setIdentityImportValue("");
+                    setIdentityImportError(undefined);
+                  }}
+                  className="flex-1 rounded-lg border border-vil-line py-2 text-xs font-bold text-vil-muted"
+                >
+                  {t("profile.importIdentityCancel")}
+                </button>
+              </div>
             </div>
-            <code className="block break-all font-mono text-[11px] leading-relaxed text-[#B9A6FF]">
-              {minaAddress}
-            </code>
-          </div>
-        )}
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowIdentityImport(true)}
+              className="text-[11px] font-bold text-vil-ember"
+            >
+              {t("profile.importIdentity")}
+            </button>
+          )}
+        </div>
       </section>
 
       <section className="flex flex-col gap-3 rounded-2xl border border-vil-line bg-vil-surface p-4">
@@ -203,6 +270,43 @@ export function ProfileTab({ identity, minaAddress, relayClient, onPublish }: Pr
               </li>
             ))}
           </ul>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-2xl border border-vil-no/35 bg-vil-surface p-4">
+        <h3 className="font-display text-[13px] font-bold uppercase tracking-wide text-vil-no">
+          {t("profile.dangerZone")}
+        </h3>
+        {showResetConfirm ? (
+          <div className="flex flex-col gap-2">
+            <p className="text-[11px] text-vil-faint">{t("profile.resetWarning")}</p>
+            {resetError && <p className="text-xs text-vil-no">{resetError}</p>}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={resetting}
+                onClick={() => void doReset()}
+                className="flex-1 rounded-lg border border-vil-no/35 bg-vil-no/10 py-2 text-xs font-bold text-vil-no disabled:opacity-50"
+              >
+                {resetting ? t("profile.resetting") : t("profile.resetConfirm")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(false)}
+                className="flex-1 rounded-lg border border-vil-line py-2 text-xs font-bold text-vil-muted"
+              >
+                {t("profile.resetCancel")}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowResetConfirm(true)}
+            className="text-left text-[11px] font-bold text-vil-no"
+          >
+            {t("profile.resetApp")}
+          </button>
         )}
       </section>
     </div>

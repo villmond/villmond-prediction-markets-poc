@@ -7,7 +7,7 @@ export interface UseIdentityResult {
   /** True only on the very first visit, before any identity existed in IndexedDB. */
   isFreshIdentity: boolean;
   loading: boolean;
-  importIdentity(nsec: string): Promise<void>;
+  importIdentity: (nsec: string) => Promise<void>;
 }
 
 /** Zero-app onboarding: loads the persisted identity, or silently generates one (PRD 5.2). */
