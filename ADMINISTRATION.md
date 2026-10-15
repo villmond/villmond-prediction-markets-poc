@@ -209,6 +209,16 @@ Mina's public test network is called **Devnet** — real network, test-value
 MINA, no money at risk. Two deployment paths exist; use the one matching
 what you're setting up:
 
+**o1js is pinned to `^3.1.0`**, which targets the **Mesa** protocol hard
+fork (Devnet forked 2026-08-19, mainnet 2026-09-03) — required, since the
+live Devnet stopped accepting pre-Mesa (o1js 2.x) transaction formats on
+that date. Mesa also changed contract verification keys (twice: the
+protocol retarget, then a 3.1.0 security fix), so **any contract address
+deployed before this version has a stale verification key and must be
+redeployed** — there's no in-place upgrade. This only affects a standalone
+reference deployment (§6.2); markets/trades deployed through the PWA (§6.1)
+are always fresh and unaffected.
+
 ### 6.1 Per-market / per-trade contracts (what end users do)
 
 No separate "deploy" step for you to run — this already happens from the

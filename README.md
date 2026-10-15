@@ -24,7 +24,11 @@ Implements the Phase 1–4 milestones from the PRD roadmap (section 8):
   - `relayPool.ts` — `SimplePool`-based market event subscription/publish client.
 
 **Phase 2 — ZK Smart Contracts & BDD Test Suite**
-- Mina `o1js` zkApps (`contracts/src/`):
+- Mina `o1js` zkApps (`contracts/src/`), on `o1js@^3.1.0` targeting the
+  **Mesa** protocol hard fork (Devnet since 2026-08-19, mainnet since
+  2026-09-03) — see `DEPLOYMENT.md` §0/§1 for why this isn't optional
+  (pre-Mesa transaction formats stopped being accepted) and what it means
+  for anything deployed under an older o1js version:
   - `VilcoinLedger.ts` — per-market AMM liquidity pool (constant-product curve).
   - `MarketSettlement.ts` — oracle-signed resolution with a hardcoded, provable admin fee cut.
 - Cucumber/Gherkin BDD suite (`features/`): `onboarding.feature`, `market_settlement.feature`,
@@ -114,6 +118,17 @@ npm audit          # 0 known vulnerabilities as of this writing
 `eslint.config.js` documents every rule override inline with its reason (e.g. why
 `@typescript-eslint/require-await` is off for `contracts/src/` — o1js requires `@method` handlers
 to be `async` regardless of internal `await`s).
+
+`contracts/src/*.ts`'s event classes (`EscrowLockedEvent`, `TradeEvent`, etc.) follow a
+`FooShape`/`FooStruct` pattern — a named shape type plus an explicitly-typed intermediate
+`const FooStruct: ReturnType<typeof Struct<FooShape>> = Struct({...})` — instead of
+`class Foo extends Struct({...}) {}` directly. This isn't stylistic: TypeScript 7 hard-errors
+(`TS2883`) on the direct form, because o1js's own compiled types for `Field`/`Provable`/`Bool`
+are only reachable through its internal module paths, and a class's `extends` clause has no
+syntax to annotate around that the way a plain `const x: Field = ...` can. The explicit
+intermediate `const` sidesteps it by giving TypeScript an annotation to print instead of a
+structural type to infer. Runtime behavior is unchanged (same `Struct(...)` call, same
+arguments) — verified by the unmodified contracts/BDD test suites still passing 100%.
 
 ### CI/CD
 

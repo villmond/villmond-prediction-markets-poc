@@ -14,6 +14,10 @@ Estimated time for a full walkthrough: **20–30 minutes**.
 - **Node.js ≥ 22** (the repo was built and tested on Node 22.x; `o1js`'s
   zkApp proving and `node:test` both need a recent runtime).
 - **npm** (ships with Node).
+- On Windows, o1js's optional native (non-WASM) prover isn't published for
+  `win32-x64` as of o1js 3.x — compiling falls back to the WASM prover
+  automatically (slower locally, no functional difference; CI runs on
+  Ubuntu either way).
 - A terminal and a browser. No Docker, no external services, no API keys —
   the whole stack runs locally.
 

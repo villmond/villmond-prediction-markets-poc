@@ -49,6 +49,18 @@ Before pointing test users at anything, know the real integration boundary:
     `MarketSettlement` was configured with, same for `CashierEscrow`'s
     cashier/arbiter signatures. The role badges (§6.5 of DEMO.md) are purely
     informational.
+- **`o1js` is pinned to `^3.1.0`, not an older 2.x line — this isn't just a
+  version number.** o1js 3.x retargets the Mina protocol dependency from
+  Berkeley to the **Mesa** hard fork (Devnet forked 2026-08-19, mainnet
+  2026-09-03). Contracts built against o1js 2.x produce transactions in the
+  pre-Mesa format, which the live public Devnet has not accepted since that
+  date — so this pin is a requirement for talking to the real network today,
+  not a preference. One consequence: verification keys changed with the
+  protocol retarget (and again in a 3.1.0 security fix), so **any contract
+  instance deployed before this bump has a stale verification key and must
+  be redeployed** — there is no in-place upgrade path for an already-live
+  `VilcoinLedger`/`MarketSettlement`/`CashierEscrow`. See §1 for what that
+  means for the reference deployment script.
 - **Known POC simplifications, stated plainly rather than discovered:**
   the market creator's own Mina wallet becomes that market's admin at deploy
   time (there's no directory mapping a Nostr admin key to a Mina address);
@@ -74,6 +86,15 @@ external dependencies, both covered below.
 
 Devnet is Mina's public test network — real network, test-value MINA, no
 money at risk.
+
+**If you deployed anything before the o1js 3.1.0 bump (see §0), it's stale.**
+Mesa changed verification keys twice (the protocol retarget itself, then a
+3.1.0 security fix) — any `MarketSettlement`/`VilcoinLedger`/`CashierEscrow`
+address from an older deploy will not verify against current o1js and must
+be redeployed from scratch. The per-market/per-trade instances the PWA
+deploys itself (§0) are unaffected since they're created fresh each time;
+this only matters for a standalone reference deployment (§1.2) made before
+the bump.
 
 ### 1.1 Deploy with the provided script
 
