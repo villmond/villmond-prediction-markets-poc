@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { fetchAccount, PublicKey } from "o1js";
 import { buildBetPlacementEvent, UNCATEGORIZED_CATEGORY } from "@villmond/nostr/marketEvents.js";
 import type { VillmondKeypair } from "@villmond/nostr/keypair.js";
 import type { MarketListing } from "../hooks/useMarketEvents.js";
 import { hexToBytes } from "../utils/hex.js";
 import { buyOutcomeOnChain } from "../utils/minaContracts.js";
+import { ensureDevnetConnection } from "../utils/minaNetwork.js";
 import type { MinaWallet } from "../hooks/useMinaWallet.js";
 import { useI18n } from "../context/I18nContext.js";
 import { useToast } from "../context/ToastContext.js";
@@ -51,7 +53,35 @@ export function MarketCard({ listing, identity, minaWallet, participantCount, on
   const [onChainError, setOnChainError] = useState<string | null>(null);
   const [pendingOutcome, setPendingOutcome] = useState<number | null>(null);
   const [showRetractConfirm, setShowRetractConfirm] = useState(false);
+  const [pool, setPool] = useState<{ a: string; b: string } | null>(null);
+  const [poolFetching, setPoolFetching] = useState(false);
+  const [poolError, setPoolError] = useState<string | null>(null);
   const isMine = Boolean(identity) && listing.pubkey === identity?.publicKeyHex;
+
+  // User-triggered, not automatic — fetching every on-chain market's pool on
+  // list render would mean one `fetchAccount` RPC call per card just to
+  // paint the list (see the earlier backlog note on this). Reads the same
+  // `VilcoinLedger` state ResolveMarketPanel already reads to settle a market.
+  async function fetchPool() {
+    if (!params.ledgerAddress) return;
+    setPoolFetching(true);
+    setPoolError(null);
+    try {
+      ensureDevnetConnection();
+      const { account } = await fetchAccount({ publicKey: PublicKey.fromBase58(params.ledgerAddress) });
+      const outcomeAPool = account?.zkapp?.appState[0];
+      const outcomeBPool = account?.zkapp?.appState[1];
+      if (!outcomeAPool || !outcomeBPool) {
+        setPoolError(t("market.poolFetchErrorNotFound"));
+        return;
+      }
+      setPool({ a: outcomeAPool.toBigInt().toString(), b: outcomeBPool.toBigInt().toString() });
+    } catch (err) {
+      setPoolError(err instanceof Error ? err.message : t("market.poolFetchErrorGeneric"));
+    } finally {
+      setPoolFetching(false);
+    }
+  }
 
   function placeBet(outcomeIndex: number) {
     if (!identity) return;
@@ -109,6 +139,23 @@ export function MarketCard({ listing, identity, minaWallet, participantCount, on
       {Boolean(participantCount) && (
         <p className="text-[11px] text-vil-faint">{tn("market.participants", participantCount ?? 0)}</p>
       )}
+
+      {params.ledgerAddress &&
+        (pool ? (
+          <p className="text-[11px] text-vil-faint">
+            {t("market.poolSizes", { outcomeA: params.outcomes[0], a: pool.a, outcomeB: params.outcomes[1], b: pool.b })}
+          </p>
+        ) : (
+          <button
+            type="button"
+            disabled={poolFetching}
+            onClick={() => void fetchPool()}
+            className="text-left text-[11px] font-bold text-vil-ember disabled:opacity-50"
+          >
+            {poolFetching ? t("market.fetchingPool") : t("market.fetchPool")}
+          </button>
+        ))}
+      {poolError && <p className="text-[11px] text-vil-no">{poolError}</p>}
 
       <div className="flex gap-2.5">
         {params.outcomes.map((outcome, index) => (
