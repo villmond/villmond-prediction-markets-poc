@@ -153,7 +153,7 @@ When("an impostor tries to resolve the dispute in favor of the user", async func
 });
 
 Then("the escrow is settled", function (this: VillmondWorld) {
-  assert.equal(this.cashierError, undefined, this.cashierError?.message);
+  assert.equal(this.cashierError, undefined, this.cashierError?.message ?? "expected no cashier error");
   assert.equal(this.cashierZkApp!.escrowAmount.get().toBigInt(), 0n);
 });
 

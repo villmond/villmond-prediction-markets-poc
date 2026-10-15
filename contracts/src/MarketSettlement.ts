@@ -9,13 +9,23 @@ import { Bool, Field, PublicKey, Signature, SmartContract, state, State, method,
 const ADMIN_FEE_BPS = 250n;
 const BPS_DENOMINATOR = 10_000n;
 
-export class ResolutionEvent extends Struct({
+type ResolutionEventShape = {
+  winningOutcome: typeof Field;
+  totalPool: typeof UInt64;
+  adminFee: typeof UInt64;
+  netPool: typeof UInt64;
+  adminPublicKey: typeof PublicKey;
+};
+
+const ResolutionEventStruct: ReturnType<typeof Struct<ResolutionEventShape>> = Struct({
   winningOutcome: Field,
   totalPool: UInt64,
   adminFee: UInt64,
   netPool: UInt64,
   adminPublicKey: PublicKey,
-}) {}
+});
+
+export class ResolutionEvent extends ResolutionEventStruct {}
 
 /**
  * Proves market resolution and the mandatory admin fee cut (PRD 5.5).
@@ -32,10 +42,10 @@ export class ResolutionEvent extends Struct({
 export class MarketSettlement extends SmartContract {
   @state(PublicKey) adminPublicKey = State<PublicKey>();
   @state(PublicKey) oraclePublicKey = State<PublicKey>();
-  @state(Bool) resolved = State<Bool>();
-  @state(Field) winningOutcome = State<Field>();
+  @state(Bool) resolved: State<Bool> = State<Bool>();
+  @state(Field) winningOutcome: State<Field> = State<Field>();
   @state(UInt64) totalPool = State<UInt64>();
-  @state(Bool) configured = State<Bool>();
+  @state(Bool) configured: State<Bool> = State<Bool>();
 
   events = {
     resolved: ResolutionEvent,

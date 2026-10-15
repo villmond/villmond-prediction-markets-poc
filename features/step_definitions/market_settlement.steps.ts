@@ -80,9 +80,6 @@ When(
 
 Then("the market is marked resolved", function (this: VillmondWorld) {
   assert.equal(this.resolutionError, undefined);
-  // typescript-eslint's isolated program loses the o1js `@state(Bool)` decorator type here; `tsc` itself
-  // resolves `.resolved.get(): Bool` correctly (verified via `tsc -p features/tsconfig.json --noEmit`).
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
   assert.equal(this.zkApp!.resolved.get().toBoolean(), true);
 });
 
