@@ -34,8 +34,8 @@ function AppShell({ config }: { config: VillmondConfig }) {
   const { view, setView } = useMode();
   const { t } = useI18n();
   const toast = useToast();
-  const { identity, isFreshIdentity, loading } = useIdentity();
-  const minaWallet = useMinaWallet();
+  const { identity, isFreshIdentity, loading, importIdentity } = useIdentity();
+  const minaWallet = useMinaWallet(identity);
   const cashierEnabled = config.economy.enable_cashier_network;
 
   const relayClient = useRelayClient(config.network.default_relays);
@@ -219,8 +219,8 @@ function AppShell({ config }: { config: VillmondConfig }) {
         {view === "profile" && (
           <ProfileTab
             identity={identity}
-            minaAddress={minaWallet.wallet?.address}
             relayClient={relayClient}
+            onImportIdentity={importIdentity}
             onPublish={publish}
           />
         )}
