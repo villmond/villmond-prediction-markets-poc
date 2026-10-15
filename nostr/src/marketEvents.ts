@@ -155,6 +155,36 @@ export function parseMarketCreationEvent(event: NostrEvent): CreateMarketParams 
   };
 }
 
+/**
+ * Retracts a previously published market. `MARKET_CREATION_KIND` is already
+ * parameterized-replaceable (NIP-01: unique per pubkey+kind+`d`-tag), so
+ * republishing the same `d` tag with a `retracted` marker is enough for
+ * relays to supersede the original — mirrors
+ * `buildCashierOrderCancellationEvent`'s identical shape. No separate
+ * authorization check is needed: a *different* pubkey publishing the same
+ * `marketId` is a distinct replaceable-event lineage, never able to
+ * overwrite this one. `parseMarketCreationEvent` would reject this shape
+ * (no title/outcomes/etc.), so callers must check `isMarketRetraction()`
+ * before parsing — same contract as the cashier cancellation.
+ */
+export function buildMarketRetractionEvent(marketId: string, secretKey: Uint8Array): NostrEvent {
+  const template: EventTemplate = {
+    kind: MARKET_CREATION_KIND,
+    created_at: Math.floor(Date.now() / 1000),
+    tags: [
+      ["d", marketId],
+      ["retracted", "true"],
+    ],
+    content: "",
+  };
+
+  return finalizeEvent(template, secretKey);
+}
+
+export function isMarketRetraction(event: NostrEvent): boolean {
+  return event.kind === MARKET_CREATION_KIND && event.tags.some((t) => t[0] === "retracted" && t[1] === "true");
+}
+
 /** Extracts the structured bet-placement fields back out of a signed event. */
 export function parseBetPlacementEvent(event: NostrEvent): BetPlacementParams {
   if (event.kind !== BET_PLACEMENT_KIND) {

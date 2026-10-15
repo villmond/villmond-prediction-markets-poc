@@ -9,6 +9,7 @@ import { useIdentity } from "./hooks/useIdentity.js";
 import { useRelayStatus } from "./hooks/useRelayStatus.js";
 import { useRelayClient, publishEvent } from "./hooks/useRelayClient.js";
 import { useMarketEvents } from "./hooks/useMarketEvents.js";
+import { useMarketBetCounts } from "./hooks/useMarketBetCounts.js";
 import { useCashierOrders } from "./hooks/useCashierOrders.js";
 import { loadClientConfig } from "./utils/config.js";
 import { Logo } from "./components/Logo.js";
@@ -40,6 +41,7 @@ function AppShell({ config }: { config: VillmondConfig }) {
   const relayClient = useRelayClient(config.network.default_relays);
   const relayStatus = useRelayStatus(relayClient);
   const { markets, rawEvents } = useMarketEvents(relayClient);
+  const participantCounts = useMarketBetCounts(relayClient);
   const orders = useCashierOrders(cashierEnabled ? relayClient : null);
 
   const publish = (event: Parameters<typeof publishEvent>[1]): void => {
@@ -146,6 +148,7 @@ function AppShell({ config }: { config: VillmondConfig }) {
             identity={identity}
             minaWallet={minaWallet.wallet}
             categories={config.markets.categories}
+            participantCounts={participantCounts}
             onPublish={publish}
           />
         )}

@@ -2,6 +2,7 @@ import { SimplePool, type Event as NostrEvent } from "nostr-tools";
 import {
   MARKET_CREATION_KIND,
   parseMarketCreationEvent,
+  isMarketRetraction,
   BET_PLACEMENT_KIND,
   parseBetPlacementEvent,
   type CreateMarketParams,
@@ -28,10 +29,19 @@ export class MarketRelayClient {
 
   constructor(private readonly relays: string[]) {}
 
-  /** Subscribes to market-creation events, skipping any that fail to parse. */
+  /**
+   * Subscribes to market-creation events, skipping any that fail to parse.
+   * `onRetraction` fires for a market's retraction (same `d` tag
+   * republished with a `retracted` marker — see `isMarketRetraction`)
+   * instead of being silently dropped as a non-conforming event; an edited
+   * market (same `d` tag, new fields) just arrives as an ordinary `onMarket`
+   * call, since NIP-01 replaceable-event semantics already make the newest
+   * one win.
+   */
   subscribeToMarkets(
     onMarket: (market: CreateMarketParams, event: NostrEvent) => void,
     onRawEvent?: (event: NostrEvent) => void,
+    onRetraction?: (marketId: string, event: NostrEvent) => void,
   ) {
     return this.pool.subscribeMany(
       this.relays,
@@ -39,6 +49,11 @@ export class MarketRelayClient {
       {
         onevent(event) {
           onRawEvent?.(event);
+          if (isMarketRetraction(event)) {
+            const marketId = event.tags.find((t) => t[0] === "d")?.[1];
+            if (marketId) onRetraction?.(marketId, event);
+            return;
+          }
           try {
             onMarket(parseMarketCreationEvent(event), event);
           } catch {
@@ -95,6 +110,31 @@ export class MarketRelayClient {
           onRawEvent?.(event);
           try {
             onRating(parseOracleRatingEvent(event), event);
+          } catch {
+            // Non-conforming event sharing this kind; ignore rather than crash the subscription.
+          }
+        },
+      },
+    );
+  }
+
+  /**
+   * Subscribes to every kind:7001 bet-placement event across all markets
+   * (market list's live participant-count badge) — one subscription for
+   * the whole list rather than one per card.
+   */
+  subscribeToAllBets(
+    onBet: (bet: BetPlacementParams & { pubkey: string }, event: NostrEvent) => void,
+    onRawEvent?: (event: NostrEvent) => void,
+  ) {
+    return this.pool.subscribeMany(
+      this.relays,
+      { kinds: [BET_PLACEMENT_KIND] },
+      {
+        onevent(event) {
+          onRawEvent?.(event);
+          try {
+            onBet({ ...parseBetPlacementEvent(event), pubkey: event.pubkey }, event);
           } catch {
             // Non-conforming event sharing this kind; ignore rather than crash the subscription.
           }

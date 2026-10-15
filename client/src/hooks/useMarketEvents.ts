@@ -45,6 +45,14 @@ export function useMarketEvents(client: MarketRelayClient | null): UseMarketEven
       (event) => {
         setRawEvents((prev) => [event, ...prev].slice(0, RAW_LOG_LIMIT));
       },
+      (marketId) => {
+        setMarkets((prev) => {
+          if (!prev.has(marketId)) return prev;
+          const next = new Map(prev);
+          next.delete(marketId);
+          return next;
+        });
+      },
     );
 
     return () => sub.close();
