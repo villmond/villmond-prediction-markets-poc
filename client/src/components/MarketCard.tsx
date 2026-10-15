@@ -16,6 +16,12 @@ interface Props {
   listing: MarketListing;
   identity: VillmondKeypair | undefined;
   minaWallet: MinaWallet | undefined;
+  /** Live unique-bettor count for this market, from the shared `useMarketBetCounts` subscription. */
+  participantCount?: number;
+  /** Opens the create/edit modal pre-filled with this market, if the viewer is its creator. */
+  onEdit?: () => void;
+  /** Publishes this market's retraction event, if the viewer is its creator. */
+  onRetract?: () => void;
   onPublish: (event: ReturnType<typeof buildBetPlacementEvent>) => void;
 }
 
@@ -36,14 +42,16 @@ function formatCloses(closesAt: number, t: (key: string, vars?: Record<string, s
  * no server involved. Markets without a `ledgerAddress` (including ones
  * created by other, Nostr-only clients) keep working exactly as before.
  */
-export function MarketCard({ listing, identity, minaWallet, onPublish }: Props) {
-  const { t } = useI18n();
+export function MarketCard({ listing, identity, minaWallet, participantCount, onEdit, onRetract, onPublish }: Props) {
+  const { t, tn } = useI18n();
   const toast = useToast();
   const { record } = useActionHistory();
   const { params } = listing;
   const [onChainStatus, setOnChainStatus] = useState<string | null>(null);
   const [onChainError, setOnChainError] = useState<string | null>(null);
   const [pendingOutcome, setPendingOutcome] = useState<number | null>(null);
+  const [showRetractConfirm, setShowRetractConfirm] = useState(false);
+  const isMine = Boolean(identity) && listing.pubkey === identity?.publicKeyHex;
 
   function placeBet(outcomeIndex: number) {
     if (!identity) return;
@@ -98,6 +106,10 @@ export function MarketCard({ listing, identity, minaWallet, onPublish }: Props) 
 
       <p className="font-display text-lg font-bold leading-snug text-slate-100">{params.question}</p>
 
+      {Boolean(participantCount) && (
+        <p className="text-[11px] text-vil-faint">{tn("market.participants", participantCount ?? 0)}</p>
+      )}
+
       <div className="flex gap-2.5">
         {params.outcomes.map((outcome, index) => (
           <button
@@ -124,6 +136,52 @@ export function MarketCard({ listing, identity, minaWallet, onPublish }: Props) 
       </p>
       {onChainStatus && <p className="text-center text-[11px] text-vil-yes">{onChainStatus}</p>}
       {onChainError && <p className="text-center text-[11px] text-vil-no">{onChainError}</p>}
+
+      {isMine && (onEdit || onRetract) && (
+        <div className="border-t border-vil-line pt-2.5">
+          {showRetractConfirm ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-[11px] text-vil-faint">{t("market.retractWarning")}</p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onRetract?.();
+                    setShowRetractConfirm(false);
+                  }}
+                  className="flex-1 rounded-lg border border-vil-no/35 bg-vil-no/10 py-2 text-xs font-bold text-vil-no"
+                >
+                  {t("market.retractConfirm")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowRetractConfirm(false)}
+                  className="flex-1 rounded-lg border border-vil-line py-2 text-xs font-bold text-vil-muted"
+                >
+                  {t("market.retractCancel")}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-3">
+              {onEdit && (
+                <button type="button" onClick={onEdit} className="text-[11px] font-bold text-vil-ember">
+                  {t("market.edit")}
+                </button>
+              )}
+              {onRetract && (
+                <button
+                  type="button"
+                  onClick={() => setShowRetractConfirm(true)}
+                  className="text-[11px] font-bold text-vil-no"
+                >
+                  {t("market.retract")}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -6,6 +6,8 @@ import {
   UNCATEGORIZED_CATEGORY,
   buildBetPlacementEvent,
   buildMarketCreationEvent,
+  buildMarketRetractionEvent,
+  isMarketRetraction,
   parseBetPlacementEvent,
   parseMarketCreationEvent,
 } from "../src/marketEvents.js";
@@ -107,6 +109,42 @@ describe("market creation events", () => {
         secretKey,
       ),
     ).toThrow(/category/);
+  });
+});
+
+describe("market retraction", () => {
+  it("builds a kind:30000 retraction republishing the same d tag", () => {
+    const secretKey = generateSecretKey();
+    const event = buildMarketRetractionEvent("market-abc123", secretKey);
+
+    expect(event.kind).toBe(MARKET_CREATION_KIND);
+    expect(event.tags).toEqual(expect.arrayContaining([["d", "market-abc123"]]));
+    expect(isMarketRetraction(event)).toBe(true);
+  });
+
+  it("does not flag a normal, live market as a retraction", () => {
+    const secretKey = generateSecretKey();
+    const event = buildMarketCreationEvent(
+      {
+        marketId: "market-abc123",
+        question: "q",
+        outcomeType: "binary",
+        outcomes: ["Yes", "No"],
+        metadataCid: "bafy",
+        closesAt: 1_900_000_000,
+        category: "sports",
+      },
+      secretKey,
+    );
+
+    expect(isMarketRetraction(event)).toBe(false);
+  });
+
+  it("rejects parsing a retraction as a live market, since it carries none of the required fields", () => {
+    const secretKey = generateSecretKey();
+    const event = buildMarketRetractionEvent("market-abc123", secretKey);
+
+    expect(() => parseMarketCreationEvent(event)).toThrow(/missing required tags/);
   });
 });
 
