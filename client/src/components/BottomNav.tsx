@@ -1,49 +1,63 @@
-import { useMode } from "../context/ModeContext.js";
+import { useMode, type UxView } from "../context/ModeContext.js";
+import { isViewAllowed, type UserRole } from "../utils/roles.js";
 
-/** Mobile tab bar driving the real Newbie/Expert mode state (replaces the old top-right pill toggle). */
-export function BottomNav() {
-  const { mode, setMode } = useMode();
+interface Props {
+  roles: UserRole[];
+  cashierEnabled: boolean;
+}
+
+interface Tab {
+  view: UxView;
+  label: string;
+  d: string;
+}
+
+const ALL_TABS: Tab[] = [
+  { view: "markets", label: "Markets", d: "M4 11 L12 4 L20 11 V20 H4 Z" },
+  { view: "oracle", label: "Oracle", d: "M2 12 C5 6, 19 6, 22 12 C19 18, 5 18, 2 12 Z M12 15a3 3 0 100-6 3 3 0 000 6Z" },
+  { view: "cashier", label: "Cashier", d: "M4 7h13M13 3l4 4-4 4M20 17H7M11 21l-4-4 4-4" },
+  { view: "expert", label: "Expert", d: "M4 18 L9 11 L13 15 L20 6" },
+  { view: "profile", label: "Profile", d: "M12 12a4 4 0 100-8 4 4 0 000 8ZM4 20c0-4 4-6 8-6s8 2 8 6" },
+];
+
+/**
+ * Mobile tab bar driving the real view state. Oracle/Cashier/Expert tabs
+ * are shown per role (`isViewAllowed`) — UX convenience, not access
+ * control: a client-side-only PWA with no login can't enforce a real
+ * restriction, so this only decides what's shown, never what's allowed to
+ * happen on-chain (ADMINISTRATION.md §0).
+ */
+export function BottomNav({ roles, cashierEnabled }: Props) {
+  const { view, setView } = useMode();
+  const tabs = ALL_TABS.filter((tab) => isViewAllowed(tab.view, roles, cashierEnabled));
 
   return (
     <nav className="flex items-center justify-around border-t border-vil-line bg-[#0e0c18] px-2 pb-[calc(10px+env(safe-area-inset-bottom))] pt-2.5">
-      <button
-        type="button"
-        onClick={() => setMode("newbie")}
-        aria-pressed={mode === "newbie"}
-        className="flex flex-col items-center gap-1"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path
-            d="M4 11 L12 4 L20 11 V20 H4 Z"
-            stroke={mode === "newbie" ? "#8B5CF6" : "#716C8A"}
-            strokeWidth="1.8"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <span className={"text-[10px] font-bold " + (mode === "newbie" ? "text-vil-accent" : "text-[#716C8A] font-semibold")}>
-          Markets
-        </span>
-      </button>
-
-      <button
-        type="button"
-        onClick={() => setMode("expert")}
-        aria-pressed={mode === "expert"}
-        className="flex flex-col items-center gap-1"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path
-            d="M4 18 L9 11 L13 15 L20 6"
-            stroke={mode === "expert" ? "#8B5CF6" : "#716C8A"}
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <span className={"text-[10px] font-bold " + (mode === "expert" ? "text-vil-accent" : "text-[#716C8A] font-semibold")}>
-          Expert
-        </span>
-      </button>
+      {tabs.map((tab) => {
+        const active = view === tab.view;
+        return (
+          <button
+            key={tab.view}
+            type="button"
+            onClick={() => setView(tab.view)}
+            aria-pressed={active}
+            className="flex flex-col items-center gap-1"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d={tab.d}
+                stroke={active ? "#8B5CF6" : "#716C8A"}
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span className={"text-[10px] font-bold " + (active ? "text-vil-accent" : "text-[#716C8A] font-semibold")}>
+              {tab.label}
+            </span>
+          </button>
+        );
+      })}
     </nav>
   );
 }

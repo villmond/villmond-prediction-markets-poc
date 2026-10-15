@@ -1,3 +1,5 @@
+import type { UxView } from "../context/ModeContext.js";
+
 export type UserRole = "admin" | "oracle" | "cashier";
 
 /**
@@ -22,4 +24,18 @@ export function detectRoles(
   if (config.oraclePublicKeys.some(matches)) roles.push("oracle");
   if (config.cashierPublicKeys.some(matches)) roles.push("cashier");
   return roles;
+}
+
+/**
+ * Single source of truth for which tabs a role set may see, used by both
+ * `BottomNav` (filtering) and `App.tsx` (redirecting away from a tab that's
+ * no longer allowed). Cosmetic UX only — real authorization always stays
+ * cryptographic and per-contract (ADMINISTRATION.md §0); this never gates
+ * an actual on-chain action, only whether its UI is shown.
+ */
+export function isViewAllowed(view: UxView, roles: UserRole[], cashierEnabled: boolean): boolean {
+  if (view === "oracle") return roles.includes("oracle");
+  if (view === "cashier") return cashierEnabled && roles.includes("cashier");
+  if (view === "expert") return roles.includes("admin");
+  return true;
 }

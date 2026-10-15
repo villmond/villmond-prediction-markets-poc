@@ -9,6 +9,7 @@ import { useCashierOrders } from "./hooks/useCashierOrders.js";
 import { loadClientConfig } from "./utils/config.js";
 import { Logo } from "./components/Logo.js";
 import { BottomNav } from "./components/BottomNav.js";
+import { SplashScreen } from "./components/SplashScreen.js";
 import { IdentityBackupBanner } from "./components/IdentityBackupBanner.js";
 import { OnboardingWizard } from "./components/OnboardingWizard.js";
 import { MarketList } from "./components/MarketList.js";
@@ -19,11 +20,12 @@ import { RoleBadges } from "./components/RoleBadges.js";
 import { MinaWalletPanel } from "./components/MinaWalletPanel.js";
 import { ResolveMarketPanel } from "./components/ResolveMarketPanel.js";
 import { CashierEscrowPanel } from "./components/CashierEscrowPanel.js";
-import { detectRoles } from "./utils/roles.js";
+import { ProfileTab } from "./components/ProfileTab.js";
+import { detectRoles, isViewAllowed } from "./utils/roles.js";
 import { useMinaWallet } from "./hooks/useMinaWallet.js";
 
 function AppShell({ config }: { config: VillmondConfig }) {
-  const { mode } = useMode();
+  const { view, setView } = useMode();
   const { identity, isFreshIdentity, loading } = useIdentity();
   const minaWallet = useMinaWallet();
   const cashierEnabled = config.economy.enable_cashier_network;
@@ -42,14 +44,36 @@ function AppShell({ config }: { config: VillmondConfig }) {
     oraclePublicKeys: config.oracles.designated_public_keys ?? [],
     cashierPublicKeys: config.cashier_module.designated_public_keys ?? [],
   });
+  const rolesKey = roles.join(",");
 
   useEffect(() => {
     document.title = config.app.name;
   }, [config.app.name]);
 
+  // Bounce back to Markets if the active tab is no longer allowed — e.g. a
+  // stale localStorage value from a previous role/config, or identity still
+  // loading (roles are empty until it resolves). Waits for loading to
+  // finish so a legitimate admin isn't flashed out of Expert on reload.
+  useEffect(() => {
+    if (loading) return;
+    if (!isViewAllowed(view, roles, cashierEnabled)) {
+      setView("markets");
+    }
+    // rolesKey is a stable, comparable form of `roles` (a fresh array every render).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, rolesKey, cashierEnabled, loading, setView]);
+
+  const minaWalletPanelProps = {
+    wallet: minaWallet.wallet,
+    loading: minaWallet.loading,
+    faucetStatus: minaWallet.faucetStatus,
+    faucetError: minaWallet.faucetError,
+    onRequestFaucet: () => void minaWallet.requestFaucetFunds(),
+  };
+
   return (
     <div className="mx-auto flex h-screen max-w-md flex-col overflow-hidden bg-vil-bg">
-      {mode === "newbie" && <OnboardingWizard />}
+      {view === "markets" && <OnboardingWizard />}
 
       <header className="flex items-center justify-between border-b border-vil-line px-[18px] pb-3.5 pt-5">
         <Logo name={config.app.name} />
@@ -63,19 +87,14 @@ function AppShell({ config }: { config: VillmondConfig }) {
       <main className="flex-1 overflow-y-auto">
         {!loading && isFreshIdentity && identity && <IdentityBackupBanner identity={identity} />}
 
-        {mode === "newbie" ? (
+        {view === "markets" && (
           <MarketList markets={markets} identity={identity} minaWallet={minaWallet.wallet} onPublish={publish} />
-        ) : (
+        )}
+
+        {view === "oracle" && (
           <>
-            <ExpertPanel relays={config.network.default_relays} rawEvents={rawEvents} identity={identity} />
-            <div className="mx-4 mt-3">
-              <MinaWalletPanel
-                wallet={minaWallet.wallet}
-                loading={minaWallet.loading}
-                faucetStatus={minaWallet.faucetStatus}
-                faucetError={minaWallet.faucetError}
-                onRequestFaucet={() => void minaWallet.requestFaucetFunds()}
-              />
+            <div className="mx-4 mt-4">
+              <MinaWalletPanel {...minaWalletPanelProps} />
             </div>
             <div className="mx-4 mt-3">
               <OracleReputationPanel
@@ -85,29 +104,51 @@ function AppShell({ config }: { config: VillmondConfig }) {
                 onPublish={publish}
               />
             </div>
-            <div className="mx-4 mt-3">
+            <div className="mx-4 mt-3 mb-4">
               <ResolveMarketPanel markets={markets} minaWallet={minaWallet.wallet} />
             </div>
-            {cashierEnabled && (
-              <>
-                <div className="mx-4 mt-3">
-                  <CashierDesk
-                    orders={orders}
-                    supportedCurrencies={config.cashier_module.supported_currencies as CashierCurrency[]}
-                    identity={identity}
-                    onPublish={publish}
-                  />
-                </div>
-                <div className="mx-4 mt-3 mb-4">
-                  <CashierEscrowPanel minaWallet={minaWallet.wallet} />
-                </div>
-              </>
-            )}
           </>
+        )}
+
+        {view === "cashier" && cashierEnabled && (
+          <>
+            <div className="mx-4 mt-4">
+              <MinaWalletPanel {...minaWalletPanelProps} />
+            </div>
+            <div className="mx-4 mt-3">
+              <CashierDesk
+                orders={orders}
+                supportedCurrencies={config.cashier_module.supported_currencies as CashierCurrency[]}
+                identity={identity}
+                onPublish={publish}
+              />
+            </div>
+            <div className="mx-4 mt-3 mb-4">
+              <CashierEscrowPanel minaWallet={minaWallet.wallet} />
+            </div>
+          </>
+        )}
+
+        {view === "expert" && (
+          <>
+            <ExpertPanel relays={config.network.default_relays} rawEvents={rawEvents} />
+            <div className="mx-4 mt-3 mb-4">
+              <MinaWalletPanel {...minaWalletPanelProps} />
+            </div>
+          </>
+        )}
+
+        {view === "profile" && (
+          <ProfileTab
+            identity={identity}
+            minaAddress={minaWallet.wallet?.address}
+            relayClient={relayClient}
+            onPublish={publish}
+          />
         )}
       </main>
 
-      <BottomNav />
+      <BottomNav roles={roles} cashierEnabled={cashierEnabled} />
     </div>
   );
 }
@@ -123,11 +164,11 @@ export function App() {
   }, []);
 
   if (error) {
-    return <p className="bg-vil-bg p-4 text-sm text-vil-no">Failed to load configuration: {error}</p>;
+    return <SplashScreen error={error} />;
   }
 
   if (!config) {
-    return <p className="bg-vil-bg p-4 text-sm text-vil-muted">Loading…</p>;
+    return <SplashScreen />;
   }
 
   return (

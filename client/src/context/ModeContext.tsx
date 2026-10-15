@@ -1,37 +1,45 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
-export type UxMode = "newbie" | "expert";
+/**
+ * Markets and Profile are open to everyone; Oracle/Cashier/Expert are
+ * role-gated tabs (see `utils/roles.ts`'s `isViewAllowed` — cosmetic UX
+ * only, not real access control, per ADMINISTRATION.md §0).
+ */
+export type UxView = "markets" | "oracle" | "cashier" | "expert" | "profile";
 
 const STORAGE_KEY = "villmond:ux-mode";
+const VALID_VIEWS: readonly UxView[] = ["markets", "oracle", "cashier", "expert", "profile"];
 
 interface ModeContextValue {
-  mode: UxMode;
-  setMode: (mode: UxMode) => void;
+  view: UxView;
+  setView: (view: UxView) => void;
 }
 
 const ModeContext = createContext<ModeContextValue | undefined>(undefined);
 
-function readStoredMode(): UxMode {
+function readStoredView(): UxView {
   try {
-    return localStorage.getItem(STORAGE_KEY) === "expert" ? "expert" : "newbie";
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === "newbie") return "markets"; // legacy value from the old binary Newbie/Expert toggle
+    return (VALID_VIEWS as string[]).includes(stored ?? "") ? (stored as UxView) : "markets";
   } catch {
-    return "newbie";
+    return "markets";
   }
 }
 
-/** Dual-UX toggle: Newbie Mode (default, guided) vs Expert Mode (PRD section 4). */
+/** Multi-tab navigation state: which of the role-gated tabs is active (PRD section 4). */
 export function ModeProvider({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<UxMode>(readStoredMode);
+  const [view, setView] = useState<UxView>(readStoredView);
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, mode);
+      localStorage.setItem(STORAGE_KEY, view);
     } catch {
-      // Best-effort only; a private window or blocked storage must not break mode switching.
+      // Best-effort only; a private window or blocked storage must not break navigation.
     }
-  }, [mode]);
+  }, [view]);
 
-  return <ModeContext.Provider value={{ mode, setMode }}>{children}</ModeContext.Provider>;
+  return <ModeContext.Provider value={{ view, setView }}>{children}</ModeContext.Provider>;
 }
 
 export function useMode(): ModeContextValue {

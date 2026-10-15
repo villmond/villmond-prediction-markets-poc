@@ -1,14 +1,16 @@
-import type { VillmondKeypair } from "@villmond/nostr/keypair.js";
 import type { Event as NostrEvent } from "nostr-tools";
 
 interface Props {
   relays: string[];
   rawEvents: NostrEvent[];
-  identity: VillmondKeypair | undefined;
 }
 
-/** Expert-mode panel: connected relays, raw Nostr event log, manual key export (PRD 4). */
-export function ExpertPanel({ relays, rawEvents, identity }: Props) {
+/**
+ * Admin-only panel: connected relays, raw Nostr event log (PRD 4). Key
+ * export moved to the Profile tab (available to everyone, not just the
+ * admin) — see ProfileTab.tsx.
+ */
+export function ExpertPanel({ relays, rawEvents }: Props) {
   return (
     <div className="mx-4 mt-4 flex flex-col gap-3.5 text-sm">
       <section className="rounded-2xl border border-vil-line bg-vil-surface p-4">
@@ -24,26 +26,6 @@ export function ExpertPanel({ relays, rawEvents, identity }: Props) {
           ))}
         </ul>
       </section>
-
-      {identity && (
-        <section className="flex flex-col gap-3 rounded-2xl border border-vil-line bg-vil-surface p-4">
-          <h3 className="font-display text-[13px] font-bold uppercase tracking-wide text-vil-muted">
-            Key management
-          </h3>
-          <div>
-            <p className="mb-1 text-[11px] text-vil-faint">npub</p>
-            <code className="block break-all font-mono text-[11px] leading-relaxed text-[#B9A6FF]">
-              {identity.npub}
-            </code>
-          </div>
-          <div>
-            <p className="mb-1 text-[11px] text-vil-faint">nsec (keep private)</p>
-            <code className="block break-all font-mono text-[11px] leading-relaxed text-[#B9A6FF]">
-              {identity.nsec}
-            </code>
-          </div>
-        </section>
-      )}
 
       <section className="flex flex-col gap-2.5 rounded-2xl border border-vil-line bg-vil-surface p-4">
         <div className="flex items-center justify-between">
