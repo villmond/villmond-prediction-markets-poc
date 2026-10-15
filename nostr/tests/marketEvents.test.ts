@@ -3,6 +3,7 @@ import { generateSecretKey } from "nostr-tools";
 import {
   BET_PLACEMENT_KIND,
   MARKET_CREATION_KIND,
+  UNCATEGORIZED_CATEGORY,
   buildBetPlacementEvent,
   buildMarketCreationEvent,
   parseBetPlacementEvent,
@@ -19,6 +20,7 @@ describe("market creation events", () => {
       outcomes: ["Yes", "No"],
       metadataCid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
       closesAt: 1_900_000_000,
+      category: "sports",
     };
 
     const event = buildMarketCreationEvent(params, secretKey);
@@ -28,7 +30,7 @@ describe("market creation events", () => {
     expect(parseMarketCreationEvent(event)).toEqual(params);
   });
 
-  it("round-trips the optional ledger/settlement zkApp addresses when present", () => {
+  it("round-trips the optional ledger/settlement zkApp addresses and image CID when present", () => {
     const secretKey = generateSecretKey();
     const params = {
       marketId: "market-onchain-1",
@@ -37,6 +39,8 @@ describe("market creation events", () => {
       outcomes: ["Yes", "No"],
       metadataCid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
       closesAt: 1_900_000_000,
+      category: "technology",
+      imageCid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fimg",
       ledgerAddress: "B62qpPj4XJZHCAuya2Q6JkZNRVcVSDnEDAfQkeqoAdVDvTmV23mHcUg",
       settlementAddress: "B62qkYa1o6Mj6uTTjDqF2EkV9bcKbDU1D1V5BkQi5c8sQK5tR5qbW8W",
     };
@@ -46,11 +50,30 @@ describe("market creation events", () => {
     expect(parseMarketCreationEvent(event)).toEqual(params);
   });
 
+  it("defaults the category to uncategorized when a pre-existing market event has no category tag", () => {
+    const secretKey = generateSecretKey();
+    const event = buildMarketCreationEvent(
+      {
+        marketId: "market-legacy",
+        question: "q",
+        outcomeType: "binary",
+        outcomes: ["Yes", "No"],
+        metadataCid: "bafy",
+        closesAt: 1_900_000_000,
+        category: "politics",
+      },
+      secretKey,
+    );
+    const tampered = { ...event, tags: event.tags.filter((t) => t[0] !== "category") };
+
+    expect(parseMarketCreationEvent(tampered).category).toBe(UNCATEGORIZED_CATEGORY);
+  });
+
   it("rejects an empty question", () => {
     const secretKey = generateSecretKey();
     expect(() =>
       buildMarketCreationEvent(
-        { marketId: "x", question: "  ", outcomeType: "binary", outcomes: ["Yes", "No"], metadataCid: "bafy", closesAt: 1_900_000_000 },
+        { marketId: "x", question: "  ", outcomeType: "binary", outcomes: ["Yes", "No"], metadataCid: "bafy", closesAt: 1_900_000_000, category: "sports" },
         secretKey,
       ),
     ).toThrow(/question/);
@@ -60,7 +83,7 @@ describe("market creation events", () => {
     const secretKey = generateSecretKey();
     expect(() =>
       buildMarketCreationEvent(
-        { marketId: "x", question: "q", outcomeType: "binary", outcomes: ["Yes"], metadataCid: "bafy", closesAt: 1_900_000_000 },
+        { marketId: "x", question: "q", outcomeType: "binary", outcomes: ["Yes"], metadataCid: "bafy", closesAt: 1_900_000_000, category: "sports" },
         secretKey,
       ),
     ).toThrow(/outcomes/);
@@ -70,10 +93,20 @@ describe("market creation events", () => {
     const secretKey = generateSecretKey();
     expect(() =>
       buildMarketCreationEvent(
-        { marketId: "x", question: "q", outcomeType: "binary", outcomes: ["Yes", "No"], metadataCid: "bafy", closesAt: 1 },
+        { marketId: "x", question: "q", outcomeType: "binary", outcomes: ["Yes", "No"], metadataCid: "bafy", closesAt: 1, category: "sports" },
         secretKey,
       ),
     ).toThrow(/closesAt/);
+  });
+
+  it("rejects an empty category", () => {
+    const secretKey = generateSecretKey();
+    expect(() =>
+      buildMarketCreationEvent(
+        { marketId: "x", question: "q", outcomeType: "binary", outcomes: ["Yes", "No"], metadataCid: "bafy", closesAt: 1_900_000_000, category: "  " },
+        secretKey,
+      ),
+    ).toThrow(/category/);
   });
 });
 

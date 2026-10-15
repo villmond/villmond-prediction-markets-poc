@@ -4,6 +4,8 @@ import { useI18n } from "../context/I18nContext.js";
 interface Props {
   relays: string[];
   rawEvents: NostrEvent[];
+  /** Real per-relay connection state from `useRelayStatus` — not a decorative always-green dot. */
+  relayStatus: Map<string, boolean>;
 }
 
 /**
@@ -11,7 +13,7 @@ interface Props {
  * export moved to the Profile tab (available to everyone, not just the
  * admin) — see ProfileTab.tsx.
  */
-export function ExpertPanel({ relays, rawEvents }: Props) {
+export function ExpertPanel({ relays, rawEvents, relayStatus }: Props) {
   const { t } = useI18n();
 
   return (
@@ -21,12 +23,15 @@ export function ExpertPanel({ relays, rawEvents }: Props) {
           {t("expert.connectedRelays")}
         </h3>
         <ul className="mt-2.5 space-y-[7px]">
-          {relays.map((relay) => (
-            <li key={relay} className="flex items-center gap-2">
-              <span className="h-[7px] w-[7px] rounded-full bg-vil-yes" />
-              <span className="font-mono text-xs text-[#C9C4DE]">{relay}</span>
-            </li>
-          ))}
+          {relays.map((relay) => {
+            const connected = relayStatus.get(relay) ?? false;
+            return (
+              <li key={relay} className="flex items-center gap-2">
+                <span className={"h-[7px] w-[7px] rounded-full " + (connected ? "bg-vil-yes" : "bg-vil-no")} />
+                <span className="font-mono text-xs text-[#C9C4DE]">{relay}</span>
+              </li>
+            );
+          })}
         </ul>
       </section>
 

@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { generateSecretKey } from "nostr-tools";
 import {
   CASHIER_ORDER_KIND,
+  buildCashierOrderCancellationEvent,
   buildCashierOrderEvent,
   encodeGeohash,
+  isCashierOrderCancellation,
   parseCashierOrderEvent,
 } from "../src/cashierOrders.js";
 
@@ -45,6 +47,34 @@ describe("cashier order events", () => {
     const tampered = { ...event, tags: event.tags.filter((t) => t[0] !== "g") };
 
     expect(() => parseCashierOrderEvent(tampered)).toThrow(/missing required tags/);
+  });
+});
+
+describe("cashier order cancellation", () => {
+  it("builds a kind:30078 cancellation republishing the same d tag", () => {
+    const secretKey = generateSecretKey();
+    const event = buildCashierOrderCancellationEvent("cashier-desk-1", secretKey);
+
+    expect(event.kind).toBe(CASHIER_ORDER_KIND);
+    expect(event.tags).toEqual(expect.arrayContaining([["d", "cashier-desk-1"]]));
+    expect(isCashierOrderCancellation(event)).toBe(true);
+  });
+
+  it("does not flag a normal, live order as a cancellation", () => {
+    const secretKey = generateSecretKey();
+    const event = buildCashierOrderEvent(
+      { orderId: "x", side: "sell", currency: "USD", amountVilcoin: 1, pricePerVilcoin: 1, geohash: "u" },
+      secretKey,
+    );
+
+    expect(isCashierOrderCancellation(event)).toBe(false);
+  });
+
+  it("rejects parsing a cancellation as a live order, since it carries no price/amount", () => {
+    const secretKey = generateSecretKey();
+    const event = buildCashierOrderCancellationEvent("cashier-desk-1", secretKey);
+
+    expect(() => parseCashierOrderEvent(event)).toThrow(/missing required tags/);
   });
 });
 

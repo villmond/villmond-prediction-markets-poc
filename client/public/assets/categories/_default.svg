@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" role="img" aria-label="Market category">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="320" y2="180" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#FF7A45"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="180" fill="url(#g)"/>
+  <path d="M110 11 L160 92 L210 11" fill="none" stroke="#0B0A14" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" transform="translate(0 38)" opacity="0.85"/>
+  <circle cx="160" cy="130" r="9" fill="#0B0A14" opacity="0.85"/>
+</svg>

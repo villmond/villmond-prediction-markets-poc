@@ -9,6 +9,10 @@ export interface MarketListing {
   params: CreateMarketParams;
   /** Id of the signed `kind:30000` event, needed as the `e` tag on a bet placement. */
   eventId: string;
+  /** Author pubkey (hex) of the creation event — drives the "created by me" filter. */
+  pubkey: string;
+  /** Unix timestamp (seconds) the creation event was signed — drives "sort by creation date". */
+  createdAt: number;
 }
 
 export interface UseMarketEventsResult {
@@ -29,7 +33,14 @@ export function useMarketEvents(client: MarketRelayClient | null): UseMarketEven
 
     const sub = client.subscribeToMarkets(
       (market, event) => {
-        setMarkets((prev) => new Map(prev).set(market.marketId, { params: market, eventId: event.id }));
+        setMarkets((prev) =>
+          new Map(prev).set(market.marketId, {
+            params: market,
+            eventId: event.id,
+            pubkey: event.pubkey,
+            createdAt: event.created_at,
+          }),
+        );
       },
       (event) => {
         setRawEvents((prev) => [event, ...prev].slice(0, RAW_LOG_LIMIT));

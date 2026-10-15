@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import type { VillmondConfig } from "@villmond/nostr/config.js";
 import type { CashierCurrency } from "@villmond/nostr/cashierOrders.js";
 import { ModeProvider, useMode } from "./context/ModeContext.js";
-import { I18nProvider } from "./context/I18nContext.js";
+import { I18nProvider, useI18n } from "./context/I18nContext.js";
+import { ToastProvider, useToast } from "./context/ToastContext.js";
+import { ToastHost } from "./components/ToastHost.js";
 import { useIdentity } from "./hooks/useIdentity.js";
+import { useRelayStatus } from "./hooks/useRelayStatus.js";
 import { useRelayClient, publishEvent } from "./hooks/useRelayClient.js";
 import { useMarketEvents } from "./hooks/useMarketEvents.js";
 import { useCashierOrders } from "./hooks/useCashierOrders.js";
@@ -28,11 +31,14 @@ import { useMinaWallet } from "./hooks/useMinaWallet.js";
 
 function AppShell({ config }: { config: VillmondConfig }) {
   const { view, setView } = useMode();
+  const { t } = useI18n();
+  const toast = useToast();
   const { identity, isFreshIdentity, loading } = useIdentity();
   const minaWallet = useMinaWallet();
   const cashierEnabled = config.economy.enable_cashier_network;
 
   const relayClient = useRelayClient(config.network.default_relays);
+  const relayStatus = useRelayStatus(relayClient);
   const { markets, rawEvents } = useMarketEvents(relayClient);
   const orders = useCashierOrders(cashierEnabled ? relayClient : null);
 
@@ -65,12 +71,57 @@ function AppShell({ config }: { config: VillmondConfig }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, rolesKey, cashierEnabled, loading, setView]);
 
+  // config.yaml is only fetched once and cached (see utils/config.ts) — an
+  // admin editing it live per ADMINISTRATION.md's "no rebuild needed"
+  // workflow gets no signal that a reload is actually needed. Poll the raw
+  // text and offer one when it changes.
+  useEffect(() => {
+    let cancelled = false;
+    let lastText: string | null = null;
+
+    const checkForChange = () => {
+      fetch("/config.yaml")
+        .then((res) => res.text())
+        .then((text) => {
+          if (cancelled) return;
+          if (lastText === null) {
+            lastText = text;
+            return;
+          }
+          if (text !== lastText) {
+            lastText = text;
+            toast.push({
+              message: t("config.changed"),
+              tone: "info",
+              action: { label: t("config.reload"), onClick: () => window.location.reload() },
+            });
+          }
+        })
+        .catch(() => {
+          // Transient network hiccup; just try again on the next poll.
+        });
+    };
+
+    checkForChange();
+    const interval = setInterval(checkForChange, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+    // Depends on `t` so the toast is never built from a stale pre-dictionary-load
+    // closure. `toast.push` is intentionally omitted: ToastContext memoizes it via
+    // useCallback with a stable dependency, so its identity never actually changes
+    // even though the context value object is a fresh literal every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t]);
+
   const minaWalletPanelProps = {
     wallet: minaWallet.wallet,
     loading: minaWallet.loading,
     faucetStatus: minaWallet.faucetStatus,
     faucetError: minaWallet.faucetError,
     onRequestFaucet: () => void minaWallet.requestFaucetFunds(),
+    onImportKey: minaWallet.importMinaKey,
   };
 
   return (
@@ -90,7 +141,13 @@ function AppShell({ config }: { config: VillmondConfig }) {
         {!loading && isFreshIdentity && identity && <IdentityBackupBanner identity={identity} />}
 
         {view === "markets" && (
-          <MarketList markets={markets} identity={identity} minaWallet={minaWallet.wallet} onPublish={publish} />
+          <MarketList
+            markets={markets}
+            identity={identity}
+            minaWallet={minaWallet.wallet}
+            categories={config.markets.categories}
+            onPublish={publish}
+          />
         )}
 
         {view === "balance" && (
@@ -117,7 +174,13 @@ function AppShell({ config }: { config: VillmondConfig }) {
               />
             </div>
             <div className="mx-4 mt-3 mb-4">
-              <ResolveMarketPanel markets={markets} minaWallet={minaWallet.wallet} />
+              <ResolveMarketPanel
+                markets={markets}
+                minaWallet={minaWallet.wallet}
+                identity={identity}
+                relayClient={relayClient}
+                onPublish={publish}
+              />
             </div>
           </>
         )}
@@ -143,7 +206,7 @@ function AppShell({ config }: { config: VillmondConfig }) {
 
         {view === "expert" && (
           <>
-            <ExpertPanel relays={config.network.default_relays} rawEvents={rawEvents} />
+            <ExpertPanel relays={config.network.default_relays} rawEvents={rawEvents} relayStatus={relayStatus} />
             <div className="mx-4 mt-3 mb-4">
               <MinaWalletPanel {...minaWalletPanelProps} />
             </div>
@@ -177,15 +240,18 @@ export function App() {
 
   return (
     <I18nProvider>
-      {error ? (
-        <SplashScreen error={error} />
-      ) : !config ? (
-        <SplashScreen />
-      ) : (
-        <ModeProvider>
-          <AppShell config={config} />
-        </ModeProvider>
-      )}
+      <ToastProvider>
+        <ToastHost />
+        {error ? (
+          <SplashScreen error={error} />
+        ) : !config ? (
+          <SplashScreen />
+        ) : (
+          <ModeProvider>
+            <AppShell config={config} />
+          </ModeProvider>
+        )}
+      </ToastProvider>
     </I18nProvider>
   );
 }

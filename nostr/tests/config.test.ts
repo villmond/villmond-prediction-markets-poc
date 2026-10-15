@@ -34,6 +34,8 @@ network:
 oracles:
   min_reputation_threshold: 3.0
   require_stake: false
+markets:
+  categories: ["sports", "technology", "politics"]
 `;
 
 describe("loadConfig", () => {
@@ -58,5 +60,13 @@ describe("loadConfig", () => {
       "network:\n  default_relays: []",
     );
     expect(() => loadConfig(writeTempConfig(yaml))).toThrow(/default_relays/);
+  });
+
+  it("throws when markets.categories is empty", () => {
+    const yaml = VALID_YAML.replace(
+      'categories: ["sports", "technology", "politics"]',
+      "categories: []",
+    );
+    expect(() => loadConfig(writeTempConfig(yaml))).toThrow(/categories/);
   });
 });

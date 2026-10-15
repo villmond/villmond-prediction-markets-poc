@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   buildCashierOrderEvent,
+  buildCashierOrderCancellationEvent,
   encodeGeohash,
   type CashierCurrency,
   type CashierOrderParams,
@@ -59,6 +60,11 @@ export function CashierDesk({ orders, supportedCurrencies, identity, onPublish }
     onPublish(event);
   }
 
+  function cancelQuote(orderId: string) {
+    if (!identity) return;
+    onPublish(buildCashierOrderCancellationEvent(orderId, hexToBytes(identity.secretKeyHex)));
+  }
+
   const inputClass =
     "rounded-[10px] border border-vil-line bg-[#100E1A] px-3 py-2.5 text-[13px] text-slate-100 placeholder:text-vil-faint";
 
@@ -73,27 +79,43 @@ export function CashierDesk({ orders, supportedCurrencies, identity, onPublish }
         {orders.length === 0 ? (
           <p className="text-xs text-vil-muted">{t("cashierDesk.noQuotes")}</p>
         ) : (
-          orders.map((order) => (
-            <div
-              key={order.orderId}
-              className="flex items-center justify-between rounded-[14px] border border-vil-line bg-[#15131F] px-3.5 py-3"
-            >
-              <div>
-                <div className={"mb-0.5 text-[11px] font-bold " + (order.side === "sell" ? "text-vil-yes" : "text-vil-no")}>
-                  {t("cashierDesk.orderSummary", {
-                    side: t(SIDE_LABEL_KEYS[order.side]),
-                    amount: order.amountVilcoin.toLocaleString(locale),
-                  })}
+          orders.map((order) => {
+            const isMine = Boolean(identity) && order.orderId.startsWith(`${identity?.publicKeyHex}-`);
+            return (
+              <div
+                key={order.orderId}
+                className="flex items-center justify-between rounded-[14px] border border-vil-line bg-[#15131F] px-3.5 py-3"
+              >
+                <div>
+                  <div
+                    className={"mb-0.5 text-[11px] font-bold " + (order.side === "sell" ? "text-vil-yes" : "text-vil-no")}
+                  >
+                    {t("cashierDesk.orderSummary", {
+                      side: t(SIDE_LABEL_KEYS[order.side]),
+                      amount: order.amountVilcoin.toLocaleString(locale),
+                    })}
+                  </div>
+                  <div className="text-xs text-vil-muted">
+                    {t("cashierDesk.pricePerVilcoin", { price: order.pricePerVilcoin, currency: order.currency })}
+                  </div>
                 </div>
-                <div className="text-xs text-vil-muted">
-                  {t("cashierDesk.pricePerVilcoin", { price: order.pricePerVilcoin, currency: order.currency })}
+                <div className="flex items-center gap-2">
+                  <span className="rounded-lg bg-[#100E1A] px-2 py-1 font-mono text-[11px] text-vil-faint">
+                    {order.geohash}
+                  </span>
+                  {isMine && (
+                    <button
+                      type="button"
+                      onClick={() => cancelQuote(order.orderId)}
+                      className="text-[11px] font-bold text-vil-no"
+                    >
+                      {t("cashierDesk.cancelQuote")}
+                    </button>
+                  )}
                 </div>
               </div>
-              <span className="rounded-lg bg-[#100E1A] px-2 py-1 font-mono text-[11px] text-vil-faint">
-                {order.geohash}
-              </span>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 

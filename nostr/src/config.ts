@@ -35,6 +35,11 @@ export interface NetworkConfig {
   default_relays: string[];
 }
 
+export interface MarketsConfig {
+  /** Browse categories offered at market creation and used to filter the markets list. Not a closed enum — any string works; unlisted categories already in use still parse and filter fine (see `UNCATEGORIZED_CATEGORY`). */
+  categories: string[];
+}
+
 export interface OraclesConfig {
   min_reputation_threshold: number;
   require_stake: boolean;
@@ -54,6 +59,7 @@ export interface VillmondConfig {
   cashier_module: CashierModuleConfig;
   network: NetworkConfig;
   oracles: OraclesConfig;
+  markets: MarketsConfig;
 }
 
 /**
@@ -68,7 +74,7 @@ export function loadConfig(path = resolve(process.cwd(), "config.yaml")): Villmo
     throw new Error(`config.yaml at ${path} is empty or invalid YAML`);
   }
 
-  for (const section of ["app", "economy", "cashier_module", "network", "oracles"] as const) {
+  for (const section of ["app", "economy", "cashier_module", "network", "oracles", "markets"] as const) {
     if (!parsed[section]) {
       throw new Error(`config.yaml is missing required section: "${section}"`);
     }
@@ -76,6 +82,10 @@ export function loadConfig(path = resolve(process.cwd(), "config.yaml")): Villmo
 
   if (!Array.isArray(parsed.network?.default_relays) || parsed.network.default_relays.length === 0) {
     throw new Error("config.yaml network.default_relays must be a non-empty array");
+  }
+
+  if (!Array.isArray(parsed.markets?.categories) || parsed.markets.categories.length === 0) {
+    throw new Error("config.yaml markets.categories must be a non-empty array");
   }
 
   return parsed as VillmondConfig;

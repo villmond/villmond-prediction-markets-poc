@@ -15,6 +15,13 @@ export const BET_PLACEMENT_KIND = 7001;
 
 export type MarketOutcomeType = "binary" | "multi";
 
+/**
+ * Category tag applied when parsing a market event that predates this
+ * field (or was published by a non-updated client) — keeps old markets
+ * parseable instead of throwing on a missing tag.
+ */
+export const UNCATEGORIZED_CATEGORY = "uncategorized";
+
 export interface CreateMarketParams {
   /** Stable unique id for this market, used as the replaceable event's `d` tag. */
   marketId: string;
@@ -26,6 +33,10 @@ export interface CreateMarketParams {
   metadataCid: string;
   /** Unix timestamp (seconds) after which the market can no longer accept bets. */
   closesAt: number;
+  /** Browse category, e.g. "sports" — from `config.yaml`'s `markets.categories`. */
+  category: string;
+  /** CID of an uploaded cover image pinned to IPFS, if the creator attached one. */
+  imageCid?: string;
   /** Deployed `VilcoinLedger` zkApp address (base58) backing this market's AMM pool, if any. */
   ledgerAddress?: string;
   /** Deployed `MarketSettlement` zkApp address (base58) for this market, if any. */
@@ -61,6 +72,9 @@ export function buildMarketCreationEvent(params: CreateMarketParams, secretKey: 
   if (!Number.isFinite(params.closesAt) || params.closesAt * 1000 <= Date.now()) {
     throw new Error("closesAt must be a future unix timestamp (seconds)");
   }
+  if (!params.category.trim()) {
+    throw new Error("category must not be empty");
+  }
 
   const tags: string[][] = [
     ["d", params.marketId],
@@ -68,7 +82,9 @@ export function buildMarketCreationEvent(params: CreateMarketParams, secretKey: 
     ["outcome_type", params.outcomeType],
     ["ipfs_cid", params.metadataCid],
     ["closes_at", String(params.closesAt)],
+    ["category", params.category],
     ...params.outcomes.map((outcome, index) => ["outcome", String(index), outcome]),
+    ...(params.imageCid ? [["image_cid", params.imageCid]] : []),
     ...(params.ledgerAddress ? [["ledger_address", params.ledgerAddress]] : []),
     ...(params.settlementAddress ? [["settlement_address", params.settlementAddress]] : []),
   ];
@@ -122,6 +138,8 @@ export function parseMarketCreationEvent(event: NostrEvent): CreateMarketParams 
 
   const ledgerAddress = getTag("ledger_address");
   const settlementAddress = getTag("settlement_address");
+  const category = getTag("category") ?? UNCATEGORIZED_CATEGORY;
+  const imageCid = getTag("image_cid");
 
   return {
     marketId,
@@ -130,6 +148,8 @@ export function parseMarketCreationEvent(event: NostrEvent): CreateMarketParams 
     outcomes,
     metadataCid,
     closesAt: Number(closesAt),
+    category,
+    ...(imageCid ? { imageCid } : {}),
     ...(ledgerAddress ? { ledgerAddress } : {}),
     ...(settlementAddress ? { settlementAddress } : {}),
   };

@@ -8,6 +8,9 @@ import {
 } from "../utils/minaContracts.js";
 import type { MinaWallet } from "../hooks/useMinaWallet.js";
 import { useI18n } from "../context/I18nContext.js";
+import { useToast } from "../context/ToastContext.js";
+import { useActionHistory } from "../hooks/useActionHistory.js";
+import { CopyButton } from "./CopyButton.js";
 
 interface Props {
   minaWallet: MinaWallet | undefined;
@@ -34,6 +37,8 @@ function parseMinaAddress(input: string): PublicKey | undefined {
  */
 export function CashierEscrowPanel({ minaWallet }: Props) {
   const { t } = useI18n();
+  const toast = useToast();
+  const { record } = useActionHistory();
   const [cashierAddr, setCashierAddr] = useState("");
   const [userAddr, setUserAddr] = useState("");
   const [arbiterAddr, setArbiterAddr] = useState("");
@@ -62,16 +67,21 @@ export function CashierEscrowPanel({ minaWallet }: Props) {
     !busy;
   const canActOnEscrow = Boolean(minaWallet) && escrowAddr.trim().length > 0 && !busy;
 
-  async function run(action: (walletPrivateKey: MinaWallet["privateKey"]) => Promise<string>) {
+  async function run(type: string, action: (walletPrivateKey: MinaWallet["privateKey"]) => Promise<string>) {
     if (!minaWallet) return;
     setBusy(true);
     setError(null);
     setStatus(null);
     try {
       const hash = await action(minaWallet.privateKey);
-      setStatus(t("cashierEscrow.sent", { hash: hash.slice(0, 12) }));
+      const message = t("cashierEscrow.sent", { hash: hash.slice(0, 12) });
+      setStatus(message);
+      void record({ type, detail: escrowAddr.trim(), hash, address: escrowAddr.trim() });
+      toast.push({ message, tone: "success" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("cashierEscrow.transactionFailed"));
+      const message = err instanceof Error ? err.message : t("cashierEscrow.transactionFailed");
+      setError(message);
+      toast.push({ message, tone: "error" });
     } finally {
       setBusy(false);
     }
@@ -92,9 +102,14 @@ export function CashierEscrowPanel({ minaWallet }: Props) {
         deadlineValue,
       );
       setEscrowAddr(escrowAddress);
-      setStatus(t("cashierEscrow.locked", { address: escrowAddress.slice(0, 12), hash: hash.slice(0, 12) }));
+      const message = t("cashierEscrow.locked", { address: escrowAddress.slice(0, 12), hash: hash.slice(0, 12) });
+      setStatus(message);
+      void record({ type: "escrow.lock", detail: escrowAddress, hash, address: escrowAddress });
+      toast.push({ message, tone: "success" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("cashierEscrow.lockErrorGeneric"));
+      const message = err instanceof Error ? err.message : t("cashierEscrow.lockErrorGeneric");
+      setError(message);
+      toast.push({ message, tone: "error" });
     } finally {
       setBusy(false);
     }
@@ -153,9 +168,12 @@ export function CashierEscrowPanel({ minaWallet }: Props) {
       </div>
 
       <div className="flex flex-col gap-2">
-        <span className="text-[11px] font-bold uppercase tracking-wide text-vil-muted">
-          {t("cashierEscrow.actOnExisting")}
-        </span>
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-bold uppercase tracking-wide text-vil-muted">
+            {t("cashierEscrow.actOnExisting")}
+          </span>
+          {escrowAddr.trim() && <CopyButton value={escrowAddr.trim()} />}
+        </div>
         <input
           value={escrowAddr}
           onChange={(e) => setEscrowAddr(e.target.value)}
@@ -166,7 +184,7 @@ export function CashierEscrowPanel({ minaWallet }: Props) {
           <button
             type="button"
             disabled={!canActOnEscrow}
-            onClick={() => void run((privateKey) => releaseEscrowOnChain(escrowAddr.trim(), privateKey))}
+            onClick={() => void run("escrow.release", (privateKey) => releaseEscrowOnChain(escrowAddr.trim(), privateKey))}
             className="flex-1 rounded-lg border border-vil-line py-2 text-xs font-bold text-vil-yes disabled:opacity-50"
           >
             {t("cashierEscrow.release")}
@@ -174,7 +192,7 @@ export function CashierEscrowPanel({ minaWallet }: Props) {
           <button
             type="button"
             disabled={!canActOnEscrow}
-            onClick={() => void run((privateKey) => timeoutSlashEscrowOnChain(escrowAddr.trim(), privateKey))}
+            onClick={() => void run("escrow.timeoutSlash", (privateKey) => timeoutSlashEscrowOnChain(escrowAddr.trim(), privateKey))}
             className="flex-1 rounded-lg border border-vil-line py-2 text-xs font-bold text-vil-no disabled:opacity-50"
           >
             {t("cashierEscrow.timeoutSlash")}
@@ -189,7 +207,9 @@ export function CashierEscrowPanel({ minaWallet }: Props) {
             type="button"
             disabled={!canActOnEscrow}
             onClick={() =>
-              void run((privateKey) => arbiterResolveEscrowOnChain(escrowAddr.trim(), privateKey, favorUser))
+              void run("escrow.arbiterResolve", (privateKey) =>
+                arbiterResolveEscrowOnChain(escrowAddr.trim(), privateKey, favorUser),
+              )
             }
             className="rounded-lg border border-vil-line px-3 py-2 text-xs font-bold text-vil-muted disabled:opacity-50"
           >

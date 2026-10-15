@@ -7,9 +7,15 @@ import {
   type CreateMarketParams,
   type BetPlacementParams,
 } from "./marketEvents.js";
-import { CASHIER_ORDER_KIND, parseCashierOrderEvent, type CashierOrderParams } from "./cashierOrders.js";
+import {
+  CASHIER_ORDER_KIND,
+  parseCashierOrderEvent,
+  isCashierOrderCancellation,
+  type CashierOrderParams,
+} from "./cashierOrders.js";
 import { ORACLE_RATING_KIND, parseOracleRatingEvent, type OracleRating } from "./oracleReputation.js";
 import { PROFILE_METADATA_KIND, parseProfileMetadataEvent, type ProfileMetadata } from "./profile.js";
+import { MARKET_PAYOUT_KIND, parseMarketPayoutEvent, type MarketPayoutParams } from "./payout.js";
 
 /**
  * Thin wrapper around nostr-tools' SimplePool, scoped to this app's market
@@ -43,10 +49,16 @@ export class MarketRelayClient {
     );
   }
 
-  /** Subscribes to P2P Cashier liquidity quotes, skipping any that fail to parse. */
+  /**
+   * Subscribes to P2P Cashier liquidity quotes, skipping any that fail to
+   * parse. `onCancellation` fires for a quote retraction (same `d` tag
+   * republished with a `cancelled` marker — see `isCashierOrderCancellation`)
+   * instead of being silently dropped as a non-conforming event.
+   */
   subscribeToCashierOrders(
     onOrder: (order: CashierOrderParams, event: NostrEvent) => void,
     onRawEvent?: (event: NostrEvent) => void,
+    onCancellation?: (orderId: string, event: NostrEvent) => void,
   ) {
     return this.pool.subscribeMany(
       this.relays,
@@ -54,6 +66,11 @@ export class MarketRelayClient {
       {
         onevent(event) {
           onRawEvent?.(event);
+          if (isCashierOrderCancellation(event)) {
+            const orderId = event.tags.find((t) => t[0] === "d")?.[1];
+            if (orderId) onCancellation?.(orderId, event);
+            return;
+          }
           try {
             onOrder(parseCashierOrderEvent(event), event);
           } catch {
@@ -128,6 +145,53 @@ export class MarketRelayClient {
         },
       },
     );
+  }
+
+  /** Subscribes to kind:7002 payout records naming a specific pubkey as a recipient (Balance tab). */
+  subscribeToPayouts(
+    pubkey: string,
+    onPayout: (payout: MarketPayoutParams, event: NostrEvent) => void,
+    onRawEvent?: (event: NostrEvent) => void,
+  ) {
+    return this.pool.subscribeMany(
+      this.relays,
+      { kinds: [MARKET_PAYOUT_KIND], "#p": [pubkey] },
+      {
+        onevent(event) {
+          onRawEvent?.(event);
+          try {
+            onPayout(parseMarketPayoutEvent(event), event);
+          } catch {
+            // Non-conforming event sharing this kind; ignore rather than crash the subscription.
+          }
+        },
+      },
+    );
+  }
+
+  /**
+   * One-shot historical fetch of every bet placed on a market, used by the
+   * resolving oracle to compute payout shares — carries each bet's author
+   * pubkey (not part of `BetPlacementParams` itself) since that's who the
+   * payout is owed to. Not a live subscription — `SimplePool.querySync`
+   * waits for relays' EOSE and returns.
+   */
+  async queryBetsForMarket(marketEventId: string): Promise<(BetPlacementParams & { pubkey: string })[]> {
+    const events = await this.pool.querySync(this.relays, { kinds: [BET_PLACEMENT_KIND], "#e": [marketEventId] });
+    const bets: (BetPlacementParams & { pubkey: string })[] = [];
+    for (const event of events) {
+      try {
+        bets.push({ ...parseBetPlacementEvent(event), pubkey: event.pubkey });
+      } catch {
+        // Non-conforming event sharing this kind; skip it.
+      }
+    }
+    return bets;
+  }
+
+  /** Per-relay live connection state (Expert panel's relay-status dot). */
+  getConnectionStatus(): Map<string, boolean> {
+    return this.pool.listConnectionStatus();
   }
 
   /** Broadcasts a signed event (e.g. a bet placement) to all configured relays. */

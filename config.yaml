@@ -26,3 +26,6 @@ oracles:
   min_reputation_threshold: 3.0
   require_stake: false
   designated_public_keys: [] # Informational directory only — see nostr/src/config.ts
+
+markets:
+  categories: ["sports", "technology", "politics"] # Shown at market creation and used to filter the markets list; not a closed enum.

@@ -1,11 +1,14 @@
 import { useState } from "react";
-import { buildBetPlacementEvent } from "@villmond/nostr/marketEvents.js";
+import { buildBetPlacementEvent, UNCATEGORIZED_CATEGORY } from "@villmond/nostr/marketEvents.js";
 import type { VillmondKeypair } from "@villmond/nostr/keypair.js";
 import type { MarketListing } from "../hooks/useMarketEvents.js";
 import { hexToBytes } from "../utils/hex.js";
 import { buyOutcomeOnChain } from "../utils/minaContracts.js";
 import type { MinaWallet } from "../hooks/useMinaWallet.js";
 import { useI18n } from "../context/I18nContext.js";
+import { useToast } from "../context/ToastContext.js";
+import { useActionHistory } from "../hooks/useActionHistory.js";
+import { MarketImage } from "./MarketImage.js";
 
 const ONE_TAP_AMOUNT = 10;
 
@@ -35,6 +38,8 @@ function formatCloses(closesAt: number, t: (key: string, vars?: Record<string, s
  */
 export function MarketCard({ listing, identity, minaWallet, onPublish }: Props) {
   const { t } = useI18n();
+  const toast = useToast();
+  const { record } = useActionHistory();
   const { params } = listing;
   const [onChainStatus, setOnChainStatus] = useState<string | null>(null);
   const [onChainError, setOnChainError] = useState<string | null>(null);
@@ -53,10 +58,16 @@ export function MarketCard({ listing, identity, minaWallet, onPublish }: Props) 
       setOnChainStatus(t("market.onChainSending"));
       setPendingOutcome(outcomeIndex);
       buyOutcomeOnChain(params.ledgerAddress, minaWallet.privateKey, outcomeIndex, ONE_TAP_AMOUNT)
-        .then((hash) => setOnChainStatus(t("market.onChainSent", { hash: hash.slice(0, 12) })))
+        .then((hash) => {
+          setOnChainStatus(t("market.onChainSent", { hash: hash.slice(0, 12) }));
+          void record({ type: "market.buy", detail: params.question, hash, address: params.ledgerAddress });
+          toast.push({ message: t("market.onChainSent", { hash: hash.slice(0, 12) }), tone: "success" });
+        })
         .catch((err: unknown) => {
           setOnChainStatus(null);
-          setOnChainError(err instanceof Error ? err.message : t("market.onChainFailed"));
+          const message = err instanceof Error ? err.message : t("market.onChainFailed");
+          setOnChainError(message);
+          toast.push({ message, tone: "error" });
         })
         .finally(() => setPendingOutcome(null));
     }
@@ -64,10 +75,24 @@ export function MarketCard({ listing, identity, minaWallet, onPublish }: Props) 
 
   return (
     <div className="flex flex-col gap-3 rounded-[18px] border border-vil-line bg-vil-surface p-[18px]">
-      <div className="flex items-center justify-between">
-        <span className="rounded-full bg-vil-accent/15 px-2.5 py-1 text-[11px] font-bold text-[#B9A6FF]">
-          {params.outcomeType === "binary" ? t("market.binary") : t("market.multi")}
-        </span>
+      <MarketImage
+        imageCid={params.imageCid}
+        category={params.category}
+        alt={params.question}
+        className="h-32 w-full rounded-xl object-cover"
+      />
+
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <span className="rounded-full bg-vil-accent/15 px-2.5 py-1 text-[11px] font-bold text-[#B9A6FF]">
+            {params.outcomeType === "binary" ? t("market.binary") : t("market.multi")}
+          </span>
+          <span className="rounded-full bg-vil-surface-raised px-2.5 py-1 text-[11px] font-bold text-vil-muted">
+            {params.category === UNCATEGORIZED_CATEGORY
+              ? t("market.uncategorized")
+              : params.category.charAt(0).toUpperCase() + params.category.slice(1)}
+          </span>
+        </div>
         <span className="text-[11px] text-vil-faint">{formatCloses(params.closesAt, t)}</span>
       </div>
 
