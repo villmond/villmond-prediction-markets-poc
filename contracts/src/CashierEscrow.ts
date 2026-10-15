@@ -37,18 +37,35 @@ import {
 export const RELEASE_SELECTOR: Field = Field(1);
 export const ARBITER_SELECTOR: Field = Field(2);
 
-export class EscrowLockedEvent extends Struct({
+type EscrowLockedEventShape = {
+  cashierPublicKey: typeof PublicKey;
+  userPublicKey: typeof PublicKey;
+  amount: typeof UInt64;
+  releaseDeadlineSlot: typeof UInt32;
+};
+
+const EscrowLockedEventStruct: ReturnType<typeof Struct<EscrowLockedEventShape>> = Struct({
   cashierPublicKey: PublicKey,
   userPublicKey: PublicKey,
   amount: UInt64,
   releaseDeadlineSlot: UInt32,
-}) {}
+});
 
-export class EscrowSettledEvent extends Struct({
-  outcome: Field, // 1 = released by cashier, 2 = slashed on timeout, 3 = arbiter-resolved
+export class EscrowLockedEvent extends EscrowLockedEventStruct {}
+
+type EscrowSettledEventShape = {
+  outcome: typeof Field; // 1 = released by cashier, 2 = slashed on timeout, 3 = arbiter-resolved
+  recipient: typeof PublicKey;
+  amount: typeof UInt64;
+};
+
+const EscrowSettledEventStruct: ReturnType<typeof Struct<EscrowSettledEventShape>> = Struct({
+  outcome: Field,
   recipient: PublicKey,
   amount: UInt64,
-}) {}
+});
+
+export class EscrowSettledEvent extends EscrowSettledEventStruct {}
 
 const OUTCOME_RELEASED = Field(1);
 const OUTCOME_SLASHED = Field(2);

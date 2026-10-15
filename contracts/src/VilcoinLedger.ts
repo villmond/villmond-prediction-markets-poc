@@ -10,18 +10,27 @@ import { Bool, Field, SmartContract, state, State, method, UInt64, Struct } from
  * does not change the zkApp's state-transition shape below.
  */
 
-export class TradeEvent extends Struct({
+type TradeEventShape = {
+  outcomeIndex: typeof Field;
+  amountIn: typeof UInt64;
+  outcomeAPool: typeof UInt64;
+  outcomeBPool: typeof UInt64;
+};
+
+const TradeEventStruct: ReturnType<typeof Struct<TradeEventShape>> = Struct({
   outcomeIndex: Field,
   amountIn: UInt64,
   outcomeAPool: UInt64,
   outcomeBPool: UInt64,
-}) {}
+});
+
+export class TradeEvent extends TradeEventStruct {}
 
 export class VilcoinLedger extends SmartContract {
   @state(UInt64) outcomeAPool = State<UInt64>();
   @state(UInt64) outcomeBPool = State<UInt64>();
   @state(UInt64) totalVolume = State<UInt64>();
-  @state(Bool) seeded = State<Bool>();
+  @state(Bool) seeded: State<Bool> = State<Bool>();
 
   events = {
     trade: TradeEvent,
