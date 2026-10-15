@@ -5,10 +5,10 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
  * role-gated tabs (see `utils/roles.ts`'s `isViewAllowed` — cosmetic UX
  * only, not real access control, per ADMINISTRATION.md §0).
  */
-export type UxView = "markets" | "oracle" | "cashier" | "expert" | "profile";
+export type UxView = "markets" | "balance" | "oracle" | "cashier" | "expert" | "profile";
 
 const STORAGE_KEY = "villmond:ux-mode";
-const VALID_VIEWS: readonly UxView[] = ["markets", "oracle", "cashier", "expert", "profile"];
+const VALID_VIEWS: readonly UxView[] = ["markets", "balance", "oracle", "cashier", "expert", "profile"];
 
 interface ModeContextValue {
   view: UxView;

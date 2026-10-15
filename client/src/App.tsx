@@ -21,6 +21,7 @@ import { MinaWalletPanel } from "./components/MinaWalletPanel.js";
 import { ResolveMarketPanel } from "./components/ResolveMarketPanel.js";
 import { CashierEscrowPanel } from "./components/CashierEscrowPanel.js";
 import { ProfileTab } from "./components/ProfileTab.js";
+import { BalanceTab } from "./components/BalanceTab.js";
 import { detectRoles, isViewAllowed } from "./utils/roles.js";
 import { useMinaWallet } from "./hooks/useMinaWallet.js";
 
@@ -89,6 +90,16 @@ function AppShell({ config }: { config: VillmondConfig }) {
 
         {view === "markets" && (
           <MarketList markets={markets} identity={identity} minaWallet={minaWallet.wallet} onPublish={publish} />
+        )}
+
+        {view === "balance" && (
+          <BalanceTab
+            identity={identity}
+            relayClient={relayClient}
+            minaWallet={minaWallet.wallet}
+            tokenName={config.economy.token_name}
+            startingBalance={config.economy.initial_user_balance}
+          />
         )}
 
         {view === "oracle" && (

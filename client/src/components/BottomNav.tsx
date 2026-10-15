@@ -14,6 +14,7 @@ interface Tab {
 
 const ALL_TABS: Tab[] = [
   { view: "markets", label: "Markets", d: "M4 11 L12 4 L20 11 V20 H4 Z" },
+  { view: "balance", label: "Balance", d: "M4 10h16M4 10l8-6 8 6M4 10v9h16v-9M9 14v3M15 14v3" },
   { view: "oracle", label: "Oracle", d: "M2 12 C5 6, 19 6, 22 12 C19 18, 5 18, 2 12 Z M12 15a3 3 0 100-6 3 3 0 000 6Z" },
   { view: "cashier", label: "Cashier", d: "M4 7h13M13 3l4 4-4 4M20 17H7M11 21l-4-4 4-4" },
   { view: "expert", label: "Expert", d: "M4 18 L9 11 L13 15 L20 6" },

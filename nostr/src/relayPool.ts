@@ -1,5 +1,12 @@
 import { SimplePool, type Event as NostrEvent } from "nostr-tools";
-import { MARKET_CREATION_KIND, parseMarketCreationEvent, type CreateMarketParams } from "./marketEvents.js";
+import {
+  MARKET_CREATION_KIND,
+  parseMarketCreationEvent,
+  BET_PLACEMENT_KIND,
+  parseBetPlacementEvent,
+  type CreateMarketParams,
+  type BetPlacementParams,
+} from "./marketEvents.js";
 import { CASHIER_ORDER_KIND, parseCashierOrderEvent, type CashierOrderParams } from "./cashierOrders.js";
 import { ORACLE_RATING_KIND, parseOracleRatingEvent, type OracleRating } from "./oracleReputation.js";
 import { PROFILE_METADATA_KIND, parseProfileMetadataEvent, type ProfileMetadata } from "./profile.js";
@@ -71,6 +78,28 @@ export class MarketRelayClient {
           onRawEvent?.(event);
           try {
             onRating(parseOracleRatingEvent(event), event);
+          } catch {
+            // Non-conforming event sharing this kind; ignore rather than crash the subscription.
+          }
+        },
+      },
+    );
+  }
+
+  /** Subscribes to a specific pubkey's own kind:7001 bet-placement events (Balance tab). */
+  subscribeToOwnBets(
+    pubkey: string,
+    onBet: (bet: BetPlacementParams, event: NostrEvent) => void,
+    onRawEvent?: (event: NostrEvent) => void,
+  ) {
+    return this.pool.subscribeMany(
+      this.relays,
+      { kinds: [BET_PLACEMENT_KIND], authors: [pubkey] },
+      {
+        onevent(event) {
+          onRawEvent?.(event);
+          try {
+            onBet(parseBetPlacementEvent(event), event);
           } catch {
             // Non-conforming event sharing this kind; ignore rather than crash the subscription.
           }
