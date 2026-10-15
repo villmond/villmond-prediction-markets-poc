@@ -157,6 +157,8 @@ villmond-prediction-markets-poc/
 ├── DEPLOYMENT.md              # Deploying to Mina Devnet, IPFS, and Nostr
 ├── ADMINISTRATION.md          # Admin/Oracle/Cashier setup and production ops
 ├── config.yaml              # White-label global configuration (symlinked into client/public/)
+├── scripts/
+│   └── deploy.sh              # Configuration + deployment automation (see DEPLOYMENT.md)
 ├── cucumber.json             # BDD runner config
 ├── eslint.config.js           # Monorepo-wide ESLint flat config
 ├── .github/
